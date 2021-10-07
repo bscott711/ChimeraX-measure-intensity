@@ -28,7 +28,7 @@ class _MyAPI(BundleAPI):
         # synopsis from bundle_info.xml if none is supplied
         # by the code.
         from . import cmd
-        desc = cmd.surface_intensity_desc
+        desc = cmd.measure_distance_desc
         if desc.synopsis is None:
             desc.synopsis = ci.synopsis
 
@@ -38,7 +38,7 @@ class _MyAPI(BundleAPI):
         # but actually comes from bundle_info.xml.  In this example,
         # the command name is "hello", not "hello world".
         from chimerax.core.commands import register
-        register(ci.name, desc, cmd.surface_intensity)
+        register(ci.name, desc, cmd.measure_distance)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.

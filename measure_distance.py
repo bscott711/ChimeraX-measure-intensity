@@ -17,6 +17,7 @@ def measure_distance(session, surface, to_map, radius=50, palette=None, c_range=
     if key:
         from chimerax.color_key import show_key
         show_key(session, cmap)
+    return distance
 
 
 def query_tree(init_verts, to_map, radius=50, k_nn=200):
