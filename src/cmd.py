@@ -8,8 +8,8 @@ def measure_distance(session, surface, to_map, radius=50, palette=None, c_range=
         palette = colors.BuiltinColormaps['ylgnbu-5']
     if c_range is None:
         c_range = (0, radius)
-        rmin, rmax = c_range
-        cmap = palette.rescale_range(rmin, rmax)
+    rmin, rmax = c_range
+    cmap = palette.rescale_range(rmin, rmax)
 
     _, distance = query_tree(surface.vertices, to_map.vertices, radius)
     surface.vertex_colors = cmap.interpolated_rgba8(distance)
