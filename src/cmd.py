@@ -1,17 +1,18 @@
-def measure_distance(session, surface, to_map, radius=50, palette=None, c_range=None, key=None):
+def measure_distance(session, surface, to_map, radius=15, palette=None, c_range=None, key=None):
     # All command functions are invoked with ``session`` as its
     # first argument.  Useful session attributes include:
     #   logger: chimerax.core.logger.Logger instance
     #   models: chimerax.core.models.Models instance
     if palette is None:
         from chimerax.core import colors
-        palette = colors.BuiltinColormaps['ylgnbu-5']
+        palette = colors.BuiltinColormaps['purples-8']
     if c_range is None:
         c_range = (0, radius)
     rmin, rmax = c_range
     cmap = palette.rescale_range(rmin, rmax)
 
     _, distance = query_tree(surface.vertices, to_map.vertices, radius)
+    surface.distance = distance
     surface.vertex_colors = cmap.interpolated_rgba8(distance)
 
     if key:
