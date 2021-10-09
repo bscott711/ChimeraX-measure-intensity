@@ -27,17 +27,18 @@ def query_tree(init_verts, to_map, radius=50, k_nn=200):
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
+
     tree = KDTree(to_map)
     dist, index = tree.query(
         init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
     dist[dist == inf] = nan
     distance = nanmedian(dist, axis=1)
-    index = array([remove_index(ind, tree.n)
+    index = array([_remove_index(ind, tree.n)
                    for ind in index], dtype=object)
     return index, distance
 
 
-def remove_index(index, tree_max):
+def _remove_index(index, tree_max):
     """tree query pads with tree_max if there are no neighbors."""
     index = index[index < tree_max]
     return index
