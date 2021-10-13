@@ -1,4 +1,3 @@
-
 def measure_intensity(session, surface, to_map, radius=9, palette=None, c_range=None, key=None):
     """Measure the local intensity withing radius of the surface."""
     image_coords, flattened_image, pixel_indices = get_coords(to_map)

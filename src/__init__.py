@@ -28,9 +28,12 @@ class _MyAPI(BundleAPI):
         # synopsis from bundle_info.xml if none is supplied
         # by the code.
         from . import cmd
-        desc = cmd.measure_distance_desc
-        if desc.synopsis is None:
-            desc.synopsis = ci.synopsis
+        desc_1 = cmd.measure_distance_desc
+        desc_2 = cmd.measure_intensity_desc
+        if desc_1.synopsis is None:
+            desc_1.synopsis = ci.synopsis
+        if desc_2.synopsis is None:
+            desc_2.synopsis = ci.synopsis
 
         # We then register the function as the command callback
         # with the chimerax.core.commands module.
@@ -38,7 +41,8 @@ class _MyAPI(BundleAPI):
         # but actually comes from bundle_info.xml.  In this example,
         # the command name is "hello", not "hello world".
         from chimerax.core.commands import register
-        register(ci.name, desc, cmd.measure_distance)
+        register(ci.name, desc_1, cmd.measure_distance)
+        register(ci.name, desc_2, cmd.measure_intensity)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.
