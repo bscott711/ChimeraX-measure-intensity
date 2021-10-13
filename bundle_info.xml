@@ -16,8 +16,8 @@ will be displayed without the ChimeraX- prefix.
 
   <!-- Synopsis is a one-line description
        Description is a full multi-line description -->
-  <Synopsis>Color surface based on local intensity of second channel</Synopsis>
-  <Description>Uses KDTree to locate neighbors within a defined radius. Returns the local average intensity to color the primary surface.
+  <Synopsis>Color surface based on local intensity or distance of second channel</Synopsis>
+  <Description>Uses KDTree to locate neighbors within a defined radius. Returns the local average intensity or distance to color the primary surface.
   </Description>
 
   <!-- Categories is a list where this bundle should appear -->
@@ -47,6 +47,8 @@ will be displayed without the ChimeraX- prefix.
     <PythonClassifier>Development Status :: 3 - Alpha</PythonClassifier>
     <PythonClassifier>License :: Freeware</PythonClassifier>
     <!-- ChimeraX classifiers describe supplied functionality -->
+    <ChimeraXClassifier>ChimeraX :: Command :: measure distance :: General ::
+	Color surface based on local distance between another surface</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: measure intensity :: General ::
 	Color surface based on local intensity</ChimeraXClassifier>
   </Classifiers>

@@ -76,10 +76,11 @@ def _remove_index(index, tree_max):
 def get_coords(volume):
     """Get the coords for local intensity"""
     from numpy import array, ravel_multi_index, swapaxes
-    level = volume.maximum_surface_level
     image_3d = volume.full_matrix()
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
     image_3d = swapaxes(image_3d, 0, 2)
+    #level = volume.maximum_surface_level
+    level = 0
     image_3d *= (image_3d >= level)
     image_coords = array(image_3d.nonzero())
     flattened_image = image_3d.flatten()
@@ -98,7 +99,8 @@ def local_intensity(flattened_image, pixel_indices, index):
 def register_command(session):
     """Register Chimerax command."""
     from chimerax.core.commands import CmdDesc, register, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, ModelArg
-    desc_1 = CmdDesc(
+
+    measure_distance_desc = CmdDesc(
         required=[('surface', SurfaceArg)],
         keyword=[('to_surface', SurfaceArg),
                  ('radius', FloatArg),
@@ -107,10 +109,10 @@ def register_command(session):
                  ('key', BoolArg)],
         required_arguments=['to_surface'],
         synopsis='measure local distance between two surfaces')
-    register('measure distance', desc_1,
+    register('measure distance', measure_distance_desc,
              measure_distance, logger=session.logger)
 
-    desc_2 = CmdDesc(
+    measure_intensity_desc = CmdDesc(
         required=[('surface', SurfaceArg)],
         keyword=[('to_map', ModelArg),
                  ('radius', FloatArg),
@@ -119,8 +121,9 @@ def register_command(session):
                  ('key', BoolArg)],
         required_arguments=['to_map'],
         synopsis='measure local intensity relative to surface')
-    register('measure intensity', desc_2,
+    register('measure intensity', measure_intensity_desc,
              measure_intensity, logger=session.logger)
+    return measure_distance_desc, measure_intensity_desc
 
 
 register_command(session)

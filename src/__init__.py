@@ -28,8 +28,8 @@ class _MyAPI(BundleAPI):
         # synopsis from bundle_info.xml if none is supplied
         # by the code.
         from . import cmd
-        desc_1 = cmd.measure_distance_desc
-        desc_2 = cmd.measure_intensity_desc
+        desc_1,desc_2 = cmd.register_command(session)
+
         if desc_1.synopsis is None:
             desc_1.synopsis = ci.synopsis
         if desc_2.synopsis is None:
@@ -40,6 +40,7 @@ class _MyAPI(BundleAPI):
         # Note that the command name registered is not hardwired,
         # but actually comes from bundle_info.xml.  In this example,
         # the command name is "hello", not "hello world".
+
         from chimerax.core.commands import register
         register(ci.name, desc_1, cmd.measure_distance)
         register(ci.name, desc_2, cmd.measure_intensity)
