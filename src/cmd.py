@@ -23,8 +23,8 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
 
 
 def measure_intensity(session, surface, to_map, radius=9, palette=None, range=None, key=None):
-    from numpy import nanmin, nanmax
     """Measure the local intensity within radius r of the surface."""
+    from numpy import nanmin, nanmax
     image_coords, flattened_image, pixel_indices = get_coords(to_map)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(flattened_image, pixel_indices, index)
@@ -38,7 +38,7 @@ def measure_intensity(session, surface, to_map, radius=9, palette=None, range=No
     elif range == 'full':
         rmin, rmax = nanmin(face_intensity), nanmax(face_intensity)
     else:
-        rmin, rmax = (0.8, 1.2)
+        rmin, rmax = (0.85, 1.15)
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
@@ -50,12 +50,12 @@ def measure_intensity(session, surface, to_map, radius=9, palette=None, range=No
 
 
 def query_tree(init_verts, to_map, radius=50, k_nn=200):
-    from numpy import array, nanmedian, inf, nan
-    from scipy.spatial import KDTree
     """Create a KDtree from a set of points, and query for nearest neighbors within a given radius.
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
+    from numpy import array, nanmedian, inf, nan
+    from scipy.spatial import KDTree
 
     tree = KDTree(to_map)
     dist, index = tree.query(
@@ -84,7 +84,6 @@ def get_coords(volume):
     image_coords = array(image_3d.nonzero())
     flattened_image = image_3d.flatten()
     pixel_indices = ravel_multi_index(image_coords, image_3d.shape)
-
     return image_coords, flattened_image, pixel_indices
 
 
@@ -97,6 +96,7 @@ def local_intensity(flattened_image, pixel_indices, index):
 
 
 def register_command(session):
+    """Register Chimerax command."""
     from chimerax.core.commands import CmdDesc, register, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, ModelArg
     desc_1 = CmdDesc(
         required=[('surface', SurfaceArg)],
@@ -106,11 +106,10 @@ def register_command(session):
                  ('range', ColormapRangeArg),
                  ('key', BoolArg)],
         required_arguments=['to_surface'],
-        synopsis='measure local surface distance')
+        synopsis='measure local distance between two surfaces')
     register('measure distance', desc_1,
              measure_distance, logger=session.logger)
 
-    """Register Chimerax command."""
     desc_2 = CmdDesc(
         required=[('surface', SurfaceArg)],
         keyword=[('to_map', ModelArg),
@@ -119,7 +118,7 @@ def register_command(session):
                  ('range', ColormapRangeArg),
                  ('key', BoolArg)],
         required_arguments=['to_map'],
-        synopsis='measure local surface intensity')
+        synopsis='measure local intensity relative to surface')
     register('measure intensity', desc_2,
              measure_intensity, logger=session.logger)
 
