@@ -5,7 +5,7 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
 
     if palette is None:
         from chimerax.core import colors
-        palette = colors.BuiltinColormaps['purples-8']
+        palette = colors.BuiltinColormaps['purples']
 
     if range is not None and range != 'full':
         rmin, rmax = range
@@ -31,14 +31,14 @@ def measure_intensity(session, surface, to_map, radius=9, palette=None, range=No
 
     if palette is None:
         from chimerax.core import colors
-        palette = colors.BuiltinColormaps['spectral-5']
+        palette = colors.BuiltinColormaps['spectral']
 
     if range is not None and range != 'full':
         rmin, rmax = range
     elif range == 'full':
         rmin, rmax = nanmin(face_intensity), nanmax(face_intensity)
     else:
-        rmin, rmax = (0.85, 1.15)
+        rmin, rmax = (0, 3)
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
@@ -79,8 +79,8 @@ def get_coords(volume):
     image_3d = volume.full_matrix()
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
     image_3d = swapaxes(image_3d, 0, 2)
-    #level = volume.maximum_surface_level
-    level = 0
+    level = volume.maximum_surface_level
+    #level = 0
     image_3d *= (image_3d >= level)
     image_coords = array(image_3d.nonzero())
     flattened_image = image_3d.flatten()

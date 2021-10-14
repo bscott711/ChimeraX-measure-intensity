@@ -1,32 +1,39 @@
-def measure_intensity(session, surface, to_map, radius=9, palette=None, c_range=None, key=None):
-    """Measure the local intensity withing radius of the surface."""
+from chimerax.color_key import show_key
+from chimerax.core.colors import BuiltinColormaps
+from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg,
+                                    ColormapRangeArg, FloatArg, ModelArg,
+                                    SurfaceArg, register)
+from numpy import (array, inf, nan, nanmax, nanmedian, nanmin,
+                   ravel_multi_index, swapaxes)
+from scipy.spatial import KDTree
+
+
+def measure_intensity(session, surface, to_map, radius=9, palette=None, range=None, key=None):
+    """Measure the local intensity within radius r of the surface."""
     image_coords, flattened_image, pixel_indices = get_coords(to_map)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(flattened_image, pixel_indices, index)
 
     if palette is None:
-        from chimerax.core import colors
-        palette = colors.BuiltinColormaps['purples-8']
+        palette = BuiltinColormaps['spectral-5']
 
-    if c_range is not None and c_range != 'full':
-        rmin, rmax = c_range
-    elif c_range == 'full':
-        rmin, rmax = face_intensity.min(), face_intensity.max()
+    if range is not None and range != 'full':
+        rmin, rmax = range
+    elif range == 'full':
+        rmin, rmax = nanmin(face_intensity), nanmax(face_intensity)
     else:
-        rmin, rmax = (0.8, 1.2)
+        rmin, rmax = (0.85, 1.15)
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
+    surface.face_intensity = face_intensity
 
     if key:
-        from chimerax.color_key import show_key
         show_key(session, cmap)
-    return face_intensity
 
 
 def get_coords(volume):
     """Get the coords for local intensity"""
-    from numpy import array, ravel_multi_index, swapaxes
     level = volume.maximum_surface_level
     image_3d = volume.full_matrix()
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
@@ -44,19 +51,17 @@ def query_tree(init_verts, to_map, radius=50, k_nn=200):
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
-    from numpy import array, nanmedian, inf, nan
-    from scipy.spatial import KDTree
     tree = KDTree(to_map)
     dist, index = tree.query(
         init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
     dist[dist == inf] = nan
     distance = nanmedian(dist, axis=1)
-    index = array([remove_index(ind, tree.n)
+    index = array([_remove_index(ind, tree.n)
                    for ind in index], dtype=object)
     return index, distance
 
 
-def remove_index(index, tree_max):
+def _remove_index(index, tree_max):
     """tree query pads with tree_max if there are no neighbors."""
     index = index[index < tree_max]
     return index
@@ -72,7 +77,6 @@ def local_intensity(flattened_image, pixel_indices, index):
 
 def register_command(session):
     """Register Chimerax command."""
-    from chimerax.core.commands import CmdDesc, register, SurfaceArg, ModelArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg
     desc = CmdDesc(
         required=[('surface', SurfaceArg)],
         keyword=[('to_map', ModelArg),

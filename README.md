@@ -13,4 +13,6 @@ Steps to measure intensity of surface
 The initial profiling (of similar meSPIM code) in Matlab took ~15 minutes to complete with the majority of time spent at step 5 (querying KDTree).
 Once the refactoring was complete, this reduced this to 6 seconds, and the query was ~3 seconds.
 
-This repository will be a simplified since the surface is already generated in ChimeraX, and it will just need to query the surface and additional channel.
+This repository is simplified since the surface is already generated in ChimeraX, and it will just need to query the surface and additional channel.
+
+Using the barycenter doesn't seem to be entirely necessary since we are coloring the vertices.
