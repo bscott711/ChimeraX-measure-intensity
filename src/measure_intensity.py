@@ -88,6 +88,4 @@ def register_command(session):
         synopsis='measure local surface intensity')
     register('measure intensity', desc,
              measure_intensity, logger=session.logger)
-
-
-register_command(session)
+             

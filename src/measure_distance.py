@@ -50,7 +50,7 @@ def _remove_index(index, tree_max):
     return index
 
 
-def register_command(session):
+def register_command(logger):
     """Register command for use in ChimeraX"""
     desc = CmdDesc(
         required=[('surface', SurfaceArg)],
@@ -61,6 +61,4 @@ def register_command(session):
                  ('key', BoolArg)],
         required_arguments=['to_map'],
         synopsis='measure local surface distance')
-    register('measure distance', desc, measure_distance, logger=session.logger)
-
-register_command(session)
+    register('measure distance', desc, measure_distance, logger=logger)

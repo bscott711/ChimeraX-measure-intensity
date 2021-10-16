@@ -22,7 +22,7 @@ will be displayed without the ChimeraX- prefix.
 
   <!-- Categories is a list where this bundle should appear -->
   <Categories>
-    <Category name="General"/>
+    <Category name="Volume Data"/>
   </Categories>
 
   <!-- Dependencies on other ChimeraX/Python packages -->

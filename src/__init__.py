@@ -1,5 +1,16 @@
 # vim: set expandtab shiftwidth=4 softtabstop=4:
 
+# === UCSF ChimeraX Copyright ===
+# Copyright 2016 Regents of the University of California.
+# All rights reserved.  This software provided pursuant to a
+# license agreement containing restrictions on its disclosure,
+# duplication and use.  For details see:
+# http://www.rbvi.ucsf.edu/chimerax/docs/licensing.html
+# This notice must be embedded in or attached to all copies,
+# including partial copies, of the software or any revisions
+# or derivations thereof.
+# === UCSF ChimeraX Copyright ===
+
 from chimerax.core.toolshed import BundleAPI
 
 
@@ -14,36 +25,14 @@ class _MyAPI(BundleAPI):
 
     # Override method
     @staticmethod
-    def register_command(bi, ci, logger):
-        # bi is an instance of chimerax.core.toolshed.BundleInfo
-        # ci is an instance of chimerax.core.toolshed.CommandInfo
-        # logger is an instance of chimerax.core.logger.Logger
+    def register_command(command_name, logger):
+        from . import measure_commands
+        measure_commands.register_distance_command(logger)
+        measure_commands.register_intensity_command(logger)
 
-        # This method is called once for each command listed
-        # in bundle_info.xml.  Since we only listed one command,
-        # we expect only a single call to this method.
-
-        # We import the function to call and its argument
-        # description from the ``cmd`` module, adding a
-        # synopsis from bundle_info.xml if none is supplied
-        # by the code.
-        from . import cmd
-        desc_1,desc_2 = cmd.register_command(session)
-
-        if desc_1.synopsis is None:
-            desc_1.synopsis = ci.synopsis
-        if desc_2.synopsis is None:
-            desc_2.synopsis = ci.synopsis
-
-        # We then register the function as the command callback
-        # with the chimerax.core.commands module.
-        # Note that the command name registered is not hardwired,
-        # but actually comes from bundle_info.xml.  In this example,
-        # the command name is "hello", not "hello world".
-
-        from chimerax.core.commands import register
-        register(ci.name, desc_1, cmd.measure_distance)
-        register(ci.name, desc_2, cmd.measure_intensity)
+        #from . import measure_distance, measure_intensity
+        # measure_distance.register_command(logger)
+        # measure_intensity.register_command(logger)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.
