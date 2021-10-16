@@ -22,13 +22,14 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
         show_key(session, cmap)
 
 
-def measure_intensity(session, mask_map, to_map, radius=9, palette=None, range=None, key=None):
+def measure_intensity(session, surface, to_map, radius=9, palette=None, range=None, key=None):
     """Measure the local intensity within radius r of the surface."""
     from numpy import nanmin, nanmax
-    surface = mask_map.child_models()[0]
-    #image_coords, flattened_image, pixel_indices = get_coords(to_map)
+    mask_vol = surface.volume.full_matrix()
+    level = surface.volume.maximum_surface_level
+    image_3d = to_map.full_matrix()
     image_coords, flattened_image, pixel_indices = get_coords(
-        mask_map, to_map)
+        mask_vol, level, image_3d)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(flattened_image, pixel_indices, index)
 
@@ -57,14 +58,15 @@ def query_tree(init_verts, to_map, radius=50, k_nn=200):
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
-    from numpy import array, nanmedian, inf, nan
+    from numpy import array, median, isinf
     from scipy.spatial import KDTree
 
     tree = KDTree(to_map)
     dist, index = tree.query(
         init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
-    dist[dist == inf] = nan
-    distance = nanmedian(dist, axis=1)
+    dist = dist[~isinf(dist).any(axis=1)]
+    distance = median(dist, axis=1)
+
     index = array([_remove_index(ind, tree.n)
                    for ind in index], dtype=object)
     return index, distance
@@ -120,9 +122,9 @@ def register_distance_command(logger):
 
 def register_intensity_command(session):
     """Register Chimerax command."""
-    from chimerax.core.commands import CmdDesc, register, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, ModelArg
+    from chimerax.core.commands import CmdDesc, register, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, SurfaceArg, ModelArg
     measure_intensity_desc = CmdDesc(
-        required=[('surface', ModelArg)],
+        required=[('surface', SurfaceArg)],
         keyword=[('to_map', ModelArg),
                  ('radius', FloatArg),
                  ('palette', ColormapArg),
