@@ -22,7 +22,7 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
         show_key(session, cmap)
 
 
-def measure_intensity(session, surface, to_map, radius=9, palette=None, range=None, key=None):
+def measure_intensity(session, surface, to_map, radius=15, palette=None, range=None, key=None):
     """Measure the local intensity within radius r of the surface."""
     from numpy import nanmin, nanmax
     mask_vol = surface.volume.full_matrix()
@@ -53,20 +53,32 @@ def measure_intensity(session, surface, to_map, radius=9, palette=None, range=No
         show_key(session, cmap)
 
 
+def get_coords(mask, level, image_3d):
+    """Get the coords for local intensity"""
+    from numpy import array, ravel_multi_index, swapaxes
+    # Mask the secondary channel based on the isosurface
+    image_3d *= (mask >= level)
+    # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
+    image_3d = swapaxes(image_3d, 0, 2)
+    image_coords = array(image_3d.nonzero())
+    flattened_image = image_3d.flatten()
+    pixel_indices = ravel_multi_index(image_coords, image_3d.shape)
+    return image_coords, flattened_image, pixel_indices
+
+
 def query_tree(init_verts, to_map, radius=50, k_nn=200):
     """Create a KDtree from a set of points, and query for nearest neighbors within a given radius.
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
-    from numpy import array, median, isinf
+    from numpy import array, nanmedian, inf
     from scipy.spatial import KDTree
 
     tree = KDTree(to_map)
     dist, index = tree.query(
         init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
-    dist = dist[~isinf(dist).any(axis=1)]
-    distance = median(dist, axis=1)
-
+    dist[dist == inf] = None
+    distance = nanmedian(dist, axis=1)
     index = array([_remove_index(ind, tree.n)
                    for ind in index], dtype=object)
     return index, distance
@@ -78,32 +90,15 @@ def _remove_index(index, tree_max):
     return index
 
 
-def get_coords(mask, level, image_3d):
-    """Get the coords for local intensity"""
-    from numpy import array, ravel_multi_index, swapaxes
-    #Example usage#
-    #mask = surface.full_matrix()
-    #level = surface.maximum_surface_level
-    #image_3d = to_volume.full_matrix()
-    # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
-    mask = swapaxes(mask, 0, 2)
-    image_3d = swapaxes(image_3d, 0, 2)
-    image_3d *= (mask >= level)
-    image_coords = array(image_3d.nonzero())
-    flattened_image = image_3d.flatten()
-    pixel_indices = ravel_multi_index(image_coords, image_3d.shape)
-    return image_coords, flattened_image, pixel_indices
-
-
 def local_intensity(flattened_image, pixel_indices, index):
     """Measure local mean intensity normalized to mean of all."""
     from numpy import array, nanmean
     face_intensities = array(
-        [nanmean(flattened_image[pixel_indices[ii]]) for ii in index])
+        [nanmean(flattened_image[pixel_indices[ind]]) for ind in index])
     return face_intensities/nanmean(face_intensities)
 
 
-def register_distance_command(logger):
+def register_distance_command(session):
     """Register Chimerax command."""
     from chimerax.core.commands import CmdDesc, register, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg
 
