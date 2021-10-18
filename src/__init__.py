@@ -25,14 +25,10 @@ class _MyAPI(BundleAPI):
 
     # Override method
     @staticmethod
-    def register_command(bi, ci, logger):
+    def register_command(bi, ci, session):
         from . import measure_commands
-        measure_commands.register_distance_command(logger)
-        measure_commands.register_intensity_command(logger)
-
-        #from . import measure_distance, measure_intensity
-        # measure_distance.register_command(logger)
-        # measure_intensity.register_command(logger)
+        measure_commands.register_distance_command(session)
+        measure_commands.register_intensity_command(session)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.
