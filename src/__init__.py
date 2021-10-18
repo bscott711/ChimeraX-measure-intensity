@@ -25,10 +25,22 @@ class _MyAPI(BundleAPI):
 
     # Override method
     @staticmethod
-    def register_command(bi, ci, session):
+    def register_command(bi, ci, logger):
         from . import measure_commands
-        measure_commands.register_distance_command(session)
-        measure_commands.register_intensity_command(session)
+        if ci.name == "measure distance":
+            func = measure_commands.measure_distance
+            desc = measure_commands.measure_distance_desc
+        elif ci.name == "measure intensity":
+            func = measure_commands.measure_intensity
+            desc = measure_commands.measure_intensity_desc
+        else:
+            raise ValueError(
+                "trying to register unknown command: %s" % ci.name)
+        if desc.synopsis is None:
+            desc.synopsis = ci.synopsis
+
+        from chimerax.core.commands import register
+        register(ci.name, desc, func)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.

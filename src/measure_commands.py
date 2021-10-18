@@ -1,3 +1,6 @@
+from chimerax.core.commands import CmdDesc, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, ModelArg
+
+
 def measure_distance(session, surface, to_surface, radius=15, palette=None, range=None, key=None):
     """Measure the local motion within radius r of two surfaces."""
     _, distance = query_tree(surface.vertices, to_surface.vertices, radius)
@@ -103,37 +106,23 @@ def local_intensity(flattened_image, pixel_indices, index):
     return face_intensities/nanmean(face_intensities)
 
 
-def register_distance_command(session):
-    """Register Chimerax command."""
-    from chimerax.core.commands import CmdDesc, register, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg
-
-    measure_distance_desc = CmdDesc(
-        required=[('surface', SurfaceArg)],
-        keyword=[('to_surface', SurfaceArg),
-                 ('radius', FloatArg),
-                 ('palette', ColormapArg),
-                 ('range', ColormapRangeArg),
-                 ('key', BoolArg)],
-        required_arguments=['to_surface'],
-        synopsis='measure local distance between two surfaces')
-    register('measure distance', measure_distance_desc,
-             measure_distance, session)
+measure_distance_desc = CmdDesc(
+    required=[('surface', SurfaceArg)],
+    keyword=[('to_surface', SurfaceArg),
+             ('radius', FloatArg),
+             ('palette', ColormapArg),
+             ('range', ColormapRangeArg),
+             ('key', BoolArg)],
+    required_arguments=['to_surface'],
+    synopsis='measure local distance between two surfaces')
 
 
-def register_intensity_command(session):
-    """Register Chimerax command."""
-    from chimerax.core.commands import CmdDesc, register, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, SurfaceArg, ModelArg
-    measure_intensity_desc = CmdDesc(
-        required=[('surface', SurfaceArg)],
-        keyword=[('to_map', ModelArg),
-                 ('radius', FloatArg),
-                 ('palette', ColormapArg),
-                 ('range', ColormapRangeArg),
-                 ('key', BoolArg)],
-        required_arguments=['to_map'],
-        synopsis='measure local intensity relative to surface')
-    register('measure intensity', measure_intensity_desc,
-             measure_intensity, session)
-
-# register_distance_command(session)
-# register_intensity_command(session)
+measure_intensity_desc = CmdDesc(
+    required=[('surface', SurfaceArg)],
+    keyword=[('to_map', ModelArg),
+             ('radius', FloatArg),
+             ('palette', ColormapArg),
+             ('range', ColormapRangeArg),
+             ('key', BoolArg)],
+    required_arguments=['to_map'],
+    synopsis='measure local intensity relative to surface')

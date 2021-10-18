@@ -35,10 +35,8 @@ will be displayed without the ChimeraX- prefix.
     <PythonClassifier>Development Status :: 3 - Alpha</PythonClassifier>
     <PythonClassifier>License :: Freeware</PythonClassifier>
     <!-- ChimeraX classifiers describe supplied functionality -->
-    <ChimeraXClassifier>ChimeraX :: Command :: measure distance :: General ::
-	Color surface based on local distance between another surface</ChimeraXClassifier>
-    <ChimeraXClassifier>ChimeraX :: Command :: measure intensity :: General ::
-	Color surface based on local intensity</ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Command :: measure distance :: Volume Data ::	Color surface based on local distance between another surface</ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Command :: measure intensity :: Volume Data :: Color surface based on local intensity</ChimeraXClassifier>
   </Classifiers>
 
 </BundleInfo>
