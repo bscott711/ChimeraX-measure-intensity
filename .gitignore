@@ -1,5 +1,4 @@
-src/*__pycache__
-*build/
-*.egg-info
-*dist/
-*.vscode/
+**build/
+**.egg-info
+**dist/
+**.vscode/

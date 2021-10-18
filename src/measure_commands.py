@@ -1,8 +1,8 @@
-from chimerax.core import colors
 from chimerax.color_key import show_key
-from chimerax.core.commands import (Or, BoolArg, CmdDesc, ColormapArg,
-                                    ColormapRangeArg, FloatArg, ModelArg,
-                                    SurfaceArg, MapSeriesArg)
+from chimerax.core import colors
+from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg,
+                                    ColormapRangeArg, FloatArg, ModelsArg,
+                                    SurfacesArg)
 from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.spatial import KDTree
@@ -104,8 +104,8 @@ def local_intensity(flattened_image, pixel_indices, index):
 
 
 measure_distance_desc = CmdDesc(
-    required=[('surface', Or(SurfaceArg, MapSeriesArg))],
-    keyword=[('to_surface', Or(SurfaceArg, MapSeriesArg)),
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_surface', SurfacesArg),
              ('radius', FloatArg),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
@@ -115,8 +115,8 @@ measure_distance_desc = CmdDesc(
 
 
 measure_intensity_desc = CmdDesc(
-    required=[('surface', Or(SurfaceArg, MapSeriesArg))],
-    keyword=[('to_map', Or(ModelArg, MapSeriesArg)),
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_map', ModelsArg),
              ('radius', FloatArg),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
