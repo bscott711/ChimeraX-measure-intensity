@@ -25,9 +25,9 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
 def measure_intensity(session, surface, to_map, radius=15, palette=None, range=None, key=None):
     """Measure the local intensity within radius r of the surface."""
     from numpy import nanmin, nanmax
-    mask_vol = surface.volume.full_matrix()
+    mask_vol = surface.volume.full_matrix().copy()
     level = surface.volume.maximum_surface_level
-    image_3d = to_map.full_matrix()
+    image_3d = to_map.full_matrix().copy()
     image_coords, flattened_image, pixel_indices = get_coords(
         mask_vol, level, image_3d)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
