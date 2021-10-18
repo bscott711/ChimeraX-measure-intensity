@@ -25,13 +25,10 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
 def measure_intensity(session, surface, to_map, radius=15, palette=None, range=None, key=None):
     """Measure the local intensity within radius r of the surface."""
     from numpy import nanmin, nanmax
-    mask_vol = surface.volume.full_matrix().copy()
-    level = surface.volume.maximum_surface_level
-    image_3d = to_map.full_matrix().copy()
-    image_coords, flattened_image, pixel_indices = get_coords(
-        mask_vol, level, image_3d)
+    image_info = get_image(surface, to_map)
+    image_coords, *flattened_indices = get_coords(*image_info)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
-    face_intensity = local_intensity(flattened_image, pixel_indices, index)
+    face_intensity = local_intensity(*flattened_indices, index)
 
     if palette is None:
         from chimerax.core import colors
@@ -51,6 +48,14 @@ def measure_intensity(session, surface, to_map, radius=15, palette=None, range=N
     if key:
         from chimerax.color_key import show_key
         show_key(session, cmap)
+
+
+def get_image(surface, to_map):
+    """Get the isosurface volume mask and secondary channel."""
+    mask_vol = surface.volume.full_matrix().copy()
+    level = surface.volume.maximum_surface_level
+    image_3d = to_map.full_matrix().copy()
+    return mask_vol, level, image_3d
 
 
 def get_coords(mask, level, image_3d):
@@ -130,6 +135,5 @@ def register_intensity_command(session):
     register('measure intensity', measure_intensity_desc,
              measure_intensity, logger=session.logger)
 
-
-register_distance_command(session)
-register_intensity_command(session)
+# register_distance_command(session)
+# register_intensity_command(session)

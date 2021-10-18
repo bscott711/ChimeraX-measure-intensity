@@ -25,7 +25,7 @@ class _MyAPI(BundleAPI):
 
     # Override method
     @staticmethod
-    def register_command(command_name, logger):
+    def register_command(bi, ci, logger):
         from . import measure_commands
         measure_commands.register_distance_command(logger)
         measure_commands.register_intensity_command(logger)

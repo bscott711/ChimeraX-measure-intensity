@@ -34,8 +34,8 @@ def measure_intensity(session, surface, to_map, radius=9, palette=None, range=No
 
 def get_coords(volume):
     """Get the coords for local intensity"""
+    image_3d = volume.full_matrix().copy()
     level = volume.maximum_surface_level
-    image_3d = volume.full_matrix()
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
     image_3d = swapaxes(image_3d, 0, 2)
     image_3d *= (image_3d >= level)
@@ -88,4 +88,3 @@ def register_command(session):
         synopsis='measure local surface intensity')
     register('measure intensity', desc,
              measure_intensity, logger=session.logger)
-             
