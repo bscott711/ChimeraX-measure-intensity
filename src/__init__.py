@@ -28,10 +28,10 @@ class _MyAPI(BundleAPI):
     def register_command(bi, ci, logger):
         from . import measure_commands
         if ci.name == "measure distance":
-            func = measure_commands.measure_distance
+            func = measure_commands.distance_series
             desc = measure_commands.measure_distance_desc
         elif ci.name == "measure intensity":
-            func = measure_commands.measure_intensity
+            func = measure_commands.intensity_series
             desc = measure_commands.measure_intensity_desc
         else:
             raise ValueError(

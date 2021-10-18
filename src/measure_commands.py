@@ -1,17 +1,27 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg,
-                                    ColormapRangeArg, FloatArg, ModelArg,
-                                    SurfaceArg)
+                                    ColormapRangeArg, FloatArg, SurfacesArg)
 from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.spatial import KDTree
 
 
-def measure_distance(session, surface, to_surface, radius=15, palette=None, range=None, key=None):
+def distance_series(session, surfaces, to_surfaces, radius=15, palette=None, range=None, key=None):
+    """Wrap the distance measurement for list of surfaces."""
+    [measure_distance(session, surface, to_surface, radius, palette, range, key)
+     for surface, to_surface in zip(surfaces, to_surfaces)]
+
+
+def intensity_series(session, surfaces, to_maps, radius=15, palette=None, range=None, key=None):
+    """Wrap the intensity measurement for list of surfaces."""
+    [measure_intensity(session, surface, to_map, radius, palette, range, key)
+     for surface, to_map in zip(surfaces, to_maps)]
+
+
+def measure_distance(session, surface, to_surface, radius, palette, range, key):
     """Measure the local motion within radius r of two surfaces."""
     _, distance = query_tree(surface.vertices, to_surface.vertices, radius)
-    surface.distance = distance
 
     if palette is None:
         palette = colors.BuiltinColormaps['purples']
@@ -19,7 +29,7 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
     if range is not None and range != 'full':
         rmin, rmax = range
     elif range == 'full':
-        rmin, rmax = distance.min(), distance.max()
+        rmin, rmax = nanmin(distance), nanmax(distance)
     else:
         rmin, rmax = (0, radius)
 
@@ -30,7 +40,7 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
         show_key(session, cmap)
 
 
-def measure_intensity(session, surface, to_map, radius=15, palette=None, range=None, key=None):
+def measure_intensity(session, surface, to_map, radius, palette, range, key):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
     image_coords, *flattened_indices = get_coords(*image_info)
@@ -49,7 +59,6 @@ def measure_intensity(session, surface, to_map, radius=15, palette=None, range=N
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
-    surface.face_intensity = face_intensity
 
     if key:
         show_key(session, cmap)
@@ -58,8 +67,8 @@ def measure_intensity(session, surface, to_map, radius=15, palette=None, range=N
 def get_image(surface, to_map):
     """Get the isosurface volume mask and secondary channel."""
     mask_vol = surface.volume.full_matrix().copy()
+    image_3d = to_map.volume.full_matrix().copy()
     level = surface.volume.maximum_surface_level
-    image_3d = to_map.full_matrix().copy()
     return mask_vol, level, image_3d
 
 
@@ -104,22 +113,22 @@ def local_intensity(flattened_image, pixel_indices, index):
 
 
 measure_distance_desc = CmdDesc(
-    required=[('surface', SurfaceArg)],
-    keyword=[('to_surface', SurfaceArg),
+    required=[('surfaces', SurfacesArg)],
+    keyword=[('to_surfaces', SurfacesArg),
              ('radius', FloatArg),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    required_arguments=['to_surface'],
+    required_arguments=['to_surfaces'],
     synopsis='measure local distance between two surfaces')
 
 
 measure_intensity_desc = CmdDesc(
-    required=[('surface', SurfaceArg)],
-    keyword=[('to_map', ModelArg),
+    required=[('surfaces', SurfacesArg)],
+    keyword=[('to_maps', SurfacesArg),
              ('radius', FloatArg),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    required_arguments=['to_map'],
+    required_arguments=['to_maps'],
     synopsis='measure local intensity relative to surface')

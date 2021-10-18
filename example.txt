@@ -1,8 +1,6 @@
-open C:\\Users\\bscott\\Documents\\GitHub\\ChimeraX-measure_intensity\\src\\measure_commands.py
 open X:\\For_Brandon\\M0\\*ch0_*.tif format images
 open X:\\For_Brandon\\M0\\*ch1_*.tif format images
 volume #1.1 level 42 style surface
 volume #2.1 style image maximumIntensityProjection true level 0,0 level 300,1 level 1260,1
-surface dust #1 size 1 metric 'area rank'
-lighting depthCue false
-perframe "measure intensity #1.$1 toMap #2.$1 range 0,5" ranges 1,100
+measure intensity #1.1-100 toMaps #2.1-100 range 0,5
+measure distance #1.1-99 toSurfaces #1.2-100 range 0,15
