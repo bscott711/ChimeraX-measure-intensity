@@ -1,4 +1,11 @@
-from chimerax.core.commands import CmdDesc, SurfaceArg, ColormapArg, ColormapRangeArg, BoolArg, FloatArg, ModelArg
+from chimerax.core import colors
+from chimerax.color_key import show_key
+from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg,
+                                    ColormapRangeArg, FloatArg, ModelArg,
+                                    SurfaceArg)
+from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
+                   ravel_multi_index, swapaxes)
+from scipy.spatial import KDTree
 
 
 def measure_distance(session, surface, to_surface, radius=15, palette=None, range=None, key=None):
@@ -7,7 +14,6 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
     surface.distance = distance
 
     if palette is None:
-        from chimerax.core import colors
         palette = colors.BuiltinColormaps['purples']
 
     if range is not None and range != 'full':
@@ -21,20 +27,17 @@ def measure_distance(session, surface, to_surface, radius=15, palette=None, rang
     surface.vertex_colors = cmap.interpolated_rgba8(distance)
 
     if key:
-        from chimerax.color_key import show_key
         show_key(session, cmap)
 
 
 def measure_intensity(session, surface, to_map, radius=15, palette=None, range=None, key=None):
     """Measure the local intensity within radius r of the surface."""
-    from numpy import nanmin, nanmax
     image_info = get_image(surface, to_map)
     image_coords, *flattened_indices = get_coords(*image_info)
     index, _ = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(*flattened_indices, index)
 
     if palette is None:
-        from chimerax.core import colors
         palette = colors.BuiltinColormaps['purples']
 
     if range is not None and range != 'full':
@@ -49,7 +52,6 @@ def measure_intensity(session, surface, to_map, radius=15, palette=None, range=N
     surface.face_intensity = face_intensity
 
     if key:
-        from chimerax.color_key import show_key
         show_key(session, cmap)
 
 
@@ -63,7 +65,6 @@ def get_image(surface, to_map):
 
 def get_coords(mask, level, image_3d):
     """Get the coords for local intensity"""
-    from numpy import array, ravel_multi_index, swapaxes
     # Mask the secondary channel based on the isosurface
     image_3d *= (mask >= level)
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
@@ -79,9 +80,6 @@ def query_tree(init_verts, to_map, radius=50, k_nn=200):
     Returns:
     index: index of nearest neighbors
     distance: Median distance of neighbors from local search area"""
-    from numpy import array, nanmedian, inf
-    from scipy.spatial import KDTree
-
     tree = KDTree(to_map)
     dist, index = tree.query(
         init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
@@ -100,7 +98,6 @@ def _remove_index(index, tree_max):
 
 def local_intensity(flattened_image, pixel_indices, index):
     """Measure local mean intensity normalized to mean of all."""
-    from numpy import array, nanmean
     face_intensities = array(
         [nanmean(flattened_image[pixel_indices[ind]]) for ind in index])
     return face_intensities/nanmean(face_intensities)
