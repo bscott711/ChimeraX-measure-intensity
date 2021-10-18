@@ -117,7 +117,7 @@ def register_distance_command(session):
         required_arguments=['to_surface'],
         synopsis='measure local distance between two surfaces')
     register('measure distance', measure_distance_desc,
-             measure_distance, logger=session.logger)
+             measure_distance, session)
 
 
 def register_intensity_command(session):
@@ -133,7 +133,7 @@ def register_intensity_command(session):
         required_arguments=['to_map'],
         synopsis='measure local intensity relative to surface')
     register('measure intensity', measure_intensity_desc,
-             measure_intensity, logger=session.logger)
+             measure_intensity, session)
 
 # register_distance_command(session)
 # register_intensity_command(session)

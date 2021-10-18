@@ -3,4 +3,3 @@ src/*__pycache__
 *.egg-info
 *dist/
 *.vscode/
-*Makefile
