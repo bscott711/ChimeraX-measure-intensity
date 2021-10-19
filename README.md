@@ -7,7 +7,7 @@
     3. Calculate intensities from the queried radius
     4. Normalize the intensity to the mean
 
-The initial profiling (of similar meSPIM code) in Matlab took ~15 minutes to complete with the majority of time spent at step 5 (querying KDTree).
+The initial profiling (of similar meSPIM code) in Matlab took ~15 minutes to complete with the majority of time spent querying KDTree.
 Once the refactoring was complete, this reduced this to ~3 seconds.
 
 ## Usage
