@@ -13,10 +13,10 @@ def recolor_surfaces(session, surfaces, measure='intensity', palette=None, range
 
 
 def recolor_surface(session, surface, measure, palette, range, key):
-    if measure == 'distance' and surface.distance is not None:
+    if measure == 'distance' and hasattr(surface, 'distance'):
         measurement = surface.distance
         max_range = 15
-    elif measure == 'intensity' and surface.intensity is not None:
+    elif measure == 'intensity' and hasattr(surface, 'intensity'):
         measurement = surface.intensity
         max_range = 5
     else:
