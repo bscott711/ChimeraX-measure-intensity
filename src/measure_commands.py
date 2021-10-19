@@ -1,22 +1,25 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
-from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg, StringArg,
-                                    ColormapRangeArg, FloatArg, SurfacesArg)
+from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg, FloatArg,
+                                    ColormapRangeArg, SurfacesArg)
+from chimerax.core.commands.cli import EnumOf
 from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.spatial import KDTree
 
 
-def recolor_surfaces(session, surfaces, measure='intensity', palette=None, range=None, key=None):
-    [recolor_surface(session, surface, measure, palette, range, key)
+def recolor_surfaces(session, surfaces, metric='intensity', palette=None, range=None, key=None):
+    """Wraps recolor_surface in a list comprehension"""
+    [recolor_surface(session, surface, metric, palette, range, key)
      for surface in surfaces]
 
 
-def recolor_surface(session, surface, measure, palette, range, key):
-    if measure == 'distance' and hasattr(surface, 'distance'):
+def recolor_surface(session, surface, metric, palette, range, key):
+    """Colors surface based on previously measured intensity or distance"""
+    if metric == 'distance' and hasattr(surface, 'distance'):
         measurement = surface.distance
         max_range = 15
-    elif measure == 'intensity' and hasattr(surface, 'intensity'):
+    elif metric == 'intensity' and hasattr(surface, 'intensity'):
         measurement = surface.intensity
         max_range = 5
     else:
@@ -170,8 +173,8 @@ measure_intensity_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surfaces', SurfacesArg)],
-    keyword=[('measure', StringArg),
+    keyword=[('metric', EnumOf(['intensity', 'distance'])),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    synopsis='recolor surface')
+    synopsis='recolor surface based on previous measurement')
