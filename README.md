@@ -29,6 +29,8 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
     measure distance #1.1-9 toSurfaces #1.2-10 range 0,15
     surface recolor #1 metric intensity
     surface recolor #1 metric distance palette spectral
+    hide #!1-2 models;
+    perframe "show #!1-2.$1 models; wait 1; save Surfaces_$1.glb floatColors true; wait 1; hide #!1-2.$1 models; wait 1;" ranges 1,10
 
 ## Representative Intensity at Time=0
 
