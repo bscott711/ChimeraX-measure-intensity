@@ -37,6 +37,7 @@ will be displayed without the ChimeraX- prefix.
     <!-- ChimeraX classifiers describe supplied functionality -->
     <ChimeraXClassifier>ChimeraX :: Command :: measure distance :: Volume Data ::	Color surface based on local distance between another surface</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: measure intensity :: Volume Data :: Color surface based on local intensity</ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Command :: surface recolor :: Volume Data :: Recolor surface based on previous measurement</ChimeraXClassifier>
   </Classifiers>
 
 </BundleInfo>

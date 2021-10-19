@@ -1,10 +1,42 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
-from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg,
+from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg, StringArg,
                                     ColormapRangeArg, FloatArg, SurfacesArg)
 from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.spatial import KDTree
+
+
+def recolor_surfaces(session, surfaces, measure='intensity', palette=None, range=None, key=None):
+    [recolor_surface(session, surface, measure, palette, range, key)
+     for surface in surfaces]
+
+
+def recolor_surface(session, surface, measure, palette, range, key):
+    if measure == 'distance' and surface.distance is not None:
+        measurement = surface.distance
+        max_range = 15
+    elif measure == 'intensity' and surface.intensity is not None:
+        measurement = surface.intensity
+        max_range = 5
+    else:
+        return
+
+    if palette is None:
+        palette = colors.BuiltinColormaps['purples']
+
+    if range is not None and range != 'full':
+        rmin, rmax = range
+    elif range == 'full':
+        rmin, rmax = nanmin(measurement), nanmax(measurement)
+    else:
+        rmin, rmax = (0, max_range)
+
+    cmap = palette.rescale_range(rmin, rmax)
+    surface.vertex_colors = cmap.interpolated_rgba8(measurement)
+
+    if key:
+        show_key(session, cmap)
 
 
 def distance_series(session, surfaces, to_surfaces, radius=15, palette=None, range=None, key=None):
@@ -35,6 +67,7 @@ def measure_distance(session, surface, to_surface, radius, palette, range, key):
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(distance)
+    surface.distance = distance
 
     if key:
         show_key(session, cmap)
@@ -59,6 +92,7 @@ def measure_intensity(session, surface, to_map, radius, palette, range, key):
 
     cmap = palette.rescale_range(rmin, rmax)
     surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
+    surface.intensity = face_intensity
 
     if key:
         show_key(session, cmap)
@@ -132,3 +166,12 @@ measure_intensity_desc = CmdDesc(
              ('key', BoolArg)],
     required_arguments=['to_maps'],
     synopsis='measure local intensity relative to surface')
+
+
+recolor_surfaces_desc = CmdDesc(
+    required=[('surfaces', SurfacesArg)],
+    keyword=[('measure', StringArg),
+             ('palette', ColormapArg),
+             ('range', ColormapRangeArg),
+             ('key', BoolArg)],
+    synopsis='recolor surface')
