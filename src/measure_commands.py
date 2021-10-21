@@ -25,7 +25,7 @@ def intensity_series(session, surface, to_map, radius=15, palette=None, range=No
 def recolor_surfaces(session, surface, metric='intensity', palette=None, range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
     keys = full(len(surface), False)
-    keys[-1] = key
+    keys[0] = key
     [recolor_surface(session, surface, metric, palette, range, key)
      for surface, key in zip(surface, keys)]
 
@@ -57,7 +57,7 @@ def recolor_surface(session, surface, metric, palette, range, key):
     surface.vertex_colors = cmap.interpolated_rgba8(measurement)
 
     if key:
-        show_key(session, cmap, show_tool=True)
+        show_key(session, cmap)
 
 
 def measure_distance(surface, to_surface, knn):
