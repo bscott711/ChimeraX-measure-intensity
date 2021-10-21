@@ -1,32 +1,50 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
-from chimerax.core.commands import (BoolArg, CmdDesc, ColormapArg, FloatArg,
-                                    ColormapRangeArg, SurfacesArg)
+from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
+                                    ColormapRangeArg, IntArg, SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from numpy import (array, inf, nanmax, nanmean, nanmedian, nanmin,
-                   ravel_multi_index, swapaxes)
+from numpy import (array, inf, nanmax, nanmean, nanmin, ravel_multi_index,
+                   swapaxes, full)
 from scipy.spatial import KDTree
 
 
-def recolor_surfaces(session, surfaces, metric='intensity', palette=None, range=None, key=None):
+def distance_series(session, surface, to_surface, knn=5, palette=None,      range=None, key=False):
+    """Wrap the distance measurement for list of surfaces."""
+    [measure_distance(surface, to_surface, knn)
+     for surface, to_surface in zip(surface, to_surface)]
+    recolor_surfaces(session, surface, 'distance', palette, range, key)
+
+
+def intensity_series(session, surface, to_map, radius=15, palette=None, range=None, key=False):
+    """Wrap the intensity measurement for list of surfaces."""
+    [measure_intensity(surface, to_map, radius)
+     for surface, to_map in zip(surface, to_map)]
+    recolor_surfaces(session, surface, 'intensity', palette, range, key)
+
+
+def recolor_surfaces(session, surface, metric='intensity', palette=None, range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
+    keys = full(len(surface), False)
+    keys[-1] = key
     [recolor_surface(session, surface, metric, palette, range, key)
-     for surface in surfaces]
+     for surface, key in zip(surface, keys)]
 
 
 def recolor_surface(session, surface, metric, palette, range, key):
     """Colors surface based on previously measured intensity or distance"""
     if metric == 'distance' and hasattr(surface, 'distance'):
         measurement = surface.distance
+        palette_string = 'brbg'
         max_range = 15
     elif metric == 'intensity' and hasattr(surface, 'intensity'):
         measurement = surface.intensity
+        palette_string = 'purples'
         max_range = 5
     else:
         return
 
     if palette is None:
-        palette = colors.BuiltinColormaps['purples']
+        palette = colors.BuiltinColormaps[palette_string]
 
     if range is not None and range != 'full':
         rmin, rmax = range
@@ -39,66 +57,22 @@ def recolor_surface(session, surface, metric, palette, range, key):
     surface.vertex_colors = cmap.interpolated_rgba8(measurement)
 
     if key:
-        show_key(session, cmap)
+        show_key(session, cmap, show_tool=True)
 
 
-def distance_series(session, surfaces, to_surfaces, radius=15, palette=None, range=None, key=None):
-    """Wrap the distance measurement for list of surfaces."""
-    [measure_distance(session, surface, to_surface, radius, palette, range, key)
-     for surface, to_surface in zip(surfaces, to_surfaces)]
-
-
-def intensity_series(session, surfaces, to_maps, radius=15, palette=None, range=None, key=None):
-    """Wrap the intensity measurement for list of surfaces."""
-    [measure_intensity(session, surface, to_map, radius, palette, range, key)
-     for surface, to_map in zip(surfaces, to_maps)]
-
-
-def measure_distance(session, surface, to_surface, radius, palette, range, key):
-    """Measure the local motion within radius r of two surfaces."""
-    _, distance = query_tree(surface.vertices, to_surface.vertices, radius)
-
-    if palette is None:
-        palette = colors.BuiltinColormaps['purples']
-
-    if range is not None and range != 'full':
-        rmin, rmax = range
-    elif range == 'full':
-        rmin, rmax = nanmin(distance), nanmax(distance)
-    else:
-        rmin, rmax = (0, radius)
-
-    cmap = palette.rescale_range(rmin, rmax)
-    surface.vertex_colors = cmap.interpolated_rgba8(distance)
+def measure_distance(surface, to_surface, knn):
+    """Measure the local motion of two surfaces."""
+    distance, _ = query_tree(surface.vertices, to_surface.vertices, knn=knn)
     surface.distance = distance
 
-    if key:
-        show_key(session, cmap)
 
-
-def measure_intensity(session, surface, to_map, radius, palette, range, key):
+def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
     image_coords, *flattened_indices = get_coords(*image_info)
-    index, _ = query_tree(surface.vertices, image_coords.T, radius)
+    _, index = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(*flattened_indices, index)
-
-    if palette is None:
-        palette = colors.BuiltinColormaps['purples']
-
-    if range is not None and range != 'full':
-        rmin, rmax = range
-    elif range == 'full':
-        rmin, rmax = nanmin(face_intensity), nanmax(face_intensity)
-    else:
-        rmin, rmax = (0, 3)
-
-    cmap = palette.rescale_range(rmin, rmax)
-    surface.vertex_colors = cmap.interpolated_rgba8(face_intensity)
     surface.intensity = face_intensity
-
-    if key:
-        show_key(session, cmap)
 
 
 def get_image(surface, to_map):
@@ -121,60 +95,58 @@ def get_coords(mask, level, image_3d):
     return image_coords, flattened_image, pixel_indices
 
 
-def query_tree(init_verts, to_map, radius=50, k_nn=200):
-    """Create a KDtree from a set of points, and query for nearest neighbors within a given radius.
+def query_tree(init_verts, to_map, radius=inf, knn=200):
+    """Create a KDtree from a set of points and query for nearest neighbors.
     Returns:
-    index: index of nearest neighbors
-    distance: Median distance of neighbors from local search area"""
+    index: index of nearest neighbors within radius
+    distance: Mean distance of nearest neighbors"""
     tree = KDTree(to_map)
-    dist, index = tree.query(
-        init_verts, k=range(1, k_nn), distance_upper_bound=radius, workers=-1)
+    dist, index = tree.query(init_verts, k=range(
+        1, knn), distance_upper_bound=radius, workers=-1)
     dist[dist == inf] = None
-    distance = nanmedian(dist, axis=1)
-    index = array([_remove_index(ind, tree.n)
-                   for ind in index], dtype=object)
-    return index, distance
+    distance = nanmean(dist, axis=1)
+    index = array([_index(ind, tree.n) for ind in index], dtype=object)
+    return distance, index
 
 
-def _remove_index(index, tree_max):
-    """tree query pads with tree_max if there are no neighbors."""
+def _index(index, tree_max):
+    """Tree query pads with tree_max if there are no neighbors."""
     index = index[index < tree_max]
     return index
 
 
-def local_intensity(flattened_image, pixel_indices, index):
+def local_intensity(flat_img, pixels, index):
     """Measure local mean intensity normalized to mean of all."""
-    face_intensities = array(
-        [nanmean(flattened_image[pixel_indices[ind]]) for ind in index])
-    return face_intensities/nanmean(face_intensities)
+    face_int = array([nanmean(flat_img[pixels[ind]]) for ind in index])
+    return face_int/face_int.mean()
 
 
 measure_distance_desc = CmdDesc(
-    required=[('surfaces', SurfacesArg)],
-    keyword=[('to_surfaces', SurfacesArg),
-             ('radius', FloatArg),
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_surface', SurfacesArg),
+             ('knn', Bounded(IntArg)),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    required_arguments=['to_surfaces'],
-    synopsis='measure local distance between two surfaces')
+    required_arguments=['to_surface'],
+    synopsis='Measure local distance between two surfaces')
 
 
 measure_intensity_desc = CmdDesc(
-    required=[('surfaces', SurfacesArg)],
-    keyword=[('to_maps', SurfacesArg),
-             ('radius', FloatArg),
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_map', SurfacesArg),
+             ('radius', Bounded(IntArg, 1, 30)),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    required_arguments=['to_maps'],
-    synopsis='measure local intensity relative to surface')
+    required_arguments=['to_map'],
+    synopsis='Measure local intensity relative to surface')
 
 
 recolor_surfaces_desc = CmdDesc(
-    required=[('surfaces', SurfacesArg)],
+    required=[('surface', SurfacesArg)],
     keyword=[('metric', EnumOf(['intensity', 'distance'])),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
-    synopsis='recolor surface based on previous measurement')
+    synopsis='Recolor surface based on previous measurement')
