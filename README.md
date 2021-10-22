@@ -22,27 +22,61 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 
 ### Download the demo data to X:\Demo_data: [Demo Data](https://github.com/bscott711/ChimeraX-measure-intensity/blob/main/demo_data/)
 
-### Run the following commands in ChimeraX
+## If necessary, clone the repo and install in ChimeraX
 
-    open X:\\Demo_data\\*ch0_*.tif format images
-    open X:\\Demo_data\\*ch1_*.tif format images
-    volume #1.1 level 42 style surface
-    volume #2.1 style image maximumIntensityProjection true level 0,0 level 300,1 level 1260,1
-    measure intensity #1.1-10 toMap #2.1-10 range 0,5
-    measure distance #1.1-9 toSurface #1.2-10 range 0,15
-    surface recolor #1 metric intensity
-    surface recolor #1 metric distance palette spectral
-    hide #!1-2 models;
-    perframe "show #!1-2.$1 models; wait 1; save Surfaces_$1.glb floatColors true; wait 1; hide #!1-2.$1 models; wait 1;" ranges 1,10
+    gh repo clone bscott711/ChimeraX-measure-intensity
+    cd $Repo_dir
+    devel build . ; devel install . ; devel clean . ;
 
-## Representative Intensity at Time=0
+## Run the following commands in ChimeraX
 
-|                  Initial Isosurface                  |                   Secondary Intensity                   |                     Intensity                      |
-| :--------------------------------------------------: | :-----------------------------------------------------: | :------------------------------------------------: |
-| ![Surface Image](/readme_images/Initial_Surface.png) | ![Volume Image](/readme_images/Secondary_Intensity.png) | ![Intensity](/readme_images/Surface_Intensity.png) |
+    cd X:\\demo_data\\
+    open X:\\demo_data\\*ch0_*.tif format images
+    open X:\\demo_data\\*ch1_*.tif format images
+    open X:\\demo_data\\*ch2_*.tif format images
+    volume #1.1 level 46 style surface
+    volume #2.1 style image maximumIntensityProjection true level 0,0 level 192,1 level 1260,1
+    volume #3.1 level 31 style surface
+    measure intensity #3.1-10 toMap #2.1-10 range 0,5
+    measure distance #1.1-9 toSurface #1.2-10 range 0,40
+    surface recolor #1 metric distance palette spectral range 0,30
 
-## Representative Distance between Time=0 and Time=1
+## Representative Intensity
 
-|                        Time 0                        |                       Time 1                       |                     Distance                     |
-| :--------------------------------------------------: | :------------------------------------------------: | :----------------------------------------------: |
-| ![Surface Image](/readme_images/Initial_Surface.png) | ![Surface Image](/readme_images/Surface_Time2.png) | ![Distance](/readme_images/Surface_Distance.png) |
+|             Initial Isosurfaces              |                 Secondary Intensity                  |                Surface Intensity                |
+| :------------------------------------------: | :--------------------------------------------------: | :---------------------------------------------: |
+| ![Surface Image](/readme_images/initial.png) | ![Volume Image](/readme_images/intensity_volume.png) | ![Intensity](/readme_images/intensity_only.png) |
+
+## Representative Distance between Time=x and Time=x+1
+
+|               Initial Surfaces               |               Distance in next frame               |               Distance and Intensity               |
+| :------------------------------------------: | :------------------------------------------------: | :------------------------------------------------: |
+| ![Surface Image](/readme_images/initial.png) | ![Surface Image](/readme_images/distance_only.png) | ![Distance](/readme_images/intensity_distance.png) |
+
+## Create interactive surface
+
+    1. Save surfaces in GLB format
+    2. DRACO compress with optimized settings
+    3. Upload files for display in Babylon.JS
+
+## ChimeraX commands to run
+
+    hide #!1-3 models;
+    perframe "show #!1,3.$1 models; wait 1; save Surfaces_$1.glb floatColors true; wait 1; hide #!1,3.$1 models; wait 1;" ranges 1,10
+
+## Ensure gltf-pipeline is installed and on the PATH. Run in the cmd prompt
+
+    cd X:\\demo_data\\
+
+    This will save the file in the subdirectory draco with the same name.
+    for /F %x in ('dir /b *.glb') do (gltf-pipeline -d true -i %x -o ./draco/%x)
+
+    Use the following for a maximally compressed gltf.
+    for /F %x in ('dir /b *.glb') do (gltf-pipeline -i %x -o ./draco/%x -d true --draco.quantizePositionBits 10 --draco.quantizeNormalBits 5)
+
+## Compression results
+
+| Surface ID | Raw GLB (KB) | Draco Comressed (KB) | Compression Ratio X |
+| :--------: | :----------: | :------------------: | :-----------------: |
+| Surface 1  |    28,922    |         1563         |        18.5         |
+| Surface 47 |    42,248    |         2305         |        18.3         |
