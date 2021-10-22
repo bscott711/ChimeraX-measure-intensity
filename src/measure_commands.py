@@ -3,8 +3,8 @@ from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, IntArg, SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from numpy import (array, inf, nanmax, nanmean, nanmin, ravel_multi_index,
-                   swapaxes, full)
+from numpy import (array, full, inf, nanmax, nanmean, nanmin,
+                   ravel_multi_index, swapaxes)
 from scipy.spatial import KDTree
 
 
