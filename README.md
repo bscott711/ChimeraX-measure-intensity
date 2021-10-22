@@ -28,8 +28,8 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
     open X:\\Demo_data\\*ch1_*.tif format images
     volume #1.1 level 42 style surface
     volume #2.1 style image maximumIntensityProjection true level 0,0 level 300,1 level 1260,1
-    measure intensity #1.1-10 toMaps #2.1-10 range 0,5
-    measure distance #1.1-9 toSurfaces #1.2-10 range 0,15
+    measure intensity #1.1-10 toMap #2.1-10 range 0,5
+    measure distance #1.1-9 toSurface #1.2-10 range 0,15
     surface recolor #1 metric intensity
     surface recolor #1 metric distance palette spectral
     hide #!1-2 models;
