@@ -37,8 +37,8 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
     volume #1.1 level 46 style surface
     volume #2.1 style image maximumIntensityProjection true level 0,0 level 192,1 level 1260,1
     volume #3.1 level 31 style surface
-    measure intensity #3.1-10 toMap #2.1-10 range 0,5
-    measure distance #1.1-9 toSurface #1.2-10 range 0,40
+    measure intensity #3.1-5 toMap #2.1-5 range 0,5
+    measure distance #1.1-4 toSurface #1.2-5 range 0,40
     surface recolor #1 metric distance palette spectral range 0,30
 
 ## Representative Intensity
@@ -62,7 +62,7 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 ## ChimeraX commands to run
 
     hide #!1-3 models;
-    perframe "show #!1,3.$1 models; wait 1; save Surfaces_$1.glb floatColors true; wait 1; hide #!1,3.$1 models; wait 1;" ranges 1,10
+    perframe "show #!1,3.$1 models; wait 1; save Surfaces_$1.glb floatColors true; wait 1; hide #!1,3.$1 models; wait 1;" ranges 1,5
 
 ## Ensure gltf-pipeline is installed and on the PATH. Run in the cmd prompt
 
