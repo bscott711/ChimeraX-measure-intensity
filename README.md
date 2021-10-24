@@ -14,6 +14,7 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 
 ### Clone the repo and install in ChimeraX
 
+    gh repo clone bscott711/ChimeraX-measure-intensity
     cd $Repo_dir
     devel build . ; devel install . ; devel clean . ;
 
@@ -21,12 +22,6 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
     toolshed uninstall measure-intensity
 
 ### Download the demo data to X:\Demo_data: [Demo Data](https://github.com/bscott711/ChimeraX-measure-intensity/blob/main/demo_data/)
-
-## If necessary, clone the repo and install in ChimeraX
-
-    gh repo clone bscott711/ChimeraX-measure-intensity
-    cd $Repo_dir
-    devel build . ; devel install . ; devel clean . ;
 
 ## Run the following commands in ChimeraX
 
