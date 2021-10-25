@@ -4,7 +4,7 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, IntArg, SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
 from numpy import (array, full, inf, nanmax, nanmean, nanmin,
-                   ravel_multi_index, swapaxes)
+                   ravel_multi_index, swapaxes, all)
 from scipy.ndimage import binary_dilation
 from scipy.ndimage.morphology import (generate_binary_structure,
                                       iterate_structure)
@@ -45,6 +45,10 @@ def recolor_surface(session, surface, metric, palette, range, key):
         max_range = 5
     else:
         return
+
+    # If all the measurements are np.nan set them to zero.
+    if all(measurement != measurement):
+        measurement[:] = 0
 
     if palette is None:
         palette = colors.BuiltinColormaps[palette_string]
