@@ -5,9 +5,10 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
 from chimerax.core.commands.cli import EnumOf
 from numpy import (array, full, inf, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
-from scipy.spatial import KDTree
 from scipy.ndimage import binary_dilation
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from scipy.ndimage.morphology import (generate_binary_structure,
+                                      iterate_structure)
+from scipy.spatial import KDTree
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None,      range=None, key=False):
@@ -71,7 +72,8 @@ def measure_distance(surface, to_surface, knn):
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
-    image_coords, *flattened_indices = get_coords(*image_info, radius//2)
+    masked_image = mask_image(*image_info)
+    image_coords, *flattened_indices = get_coords(masked_image)
     _, index = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(*flattened_indices, index)
     surface.intensity = face_intensity
@@ -85,18 +87,22 @@ def get_image(surface, to_map):
     return mask_vol, level, image_3d
 
 
-def get_coords(mask, level, image_3d, radius):
+def get_coords(image_3d):
     """Get the coords for local intensity"""
-    # Mask the secondary channel based on the isosurface. Uses a 3D ball to dilate with radius. This is useful for when there is a slight misalignment.
-    se = iterate_structure(generate_binary_structure(3, 1), radius)
-    masked = binary_dilation(mask >= level, structure=se)
-    image_3d *= (masked)
     # ChimeraX uses XYZ for image, but numpy uses ZYX, swap dims
     image_3d = swapaxes(image_3d, 0, 2)
     image_coords = array(image_3d.nonzero())
     flattened_image = image_3d.flatten()
     pixel_indices = ravel_multi_index(image_coords, image_3d.shape)
     return image_coords, flattened_image, pixel_indices
+
+
+def mask_image(mask, level, image_3d):
+    """Mask the secondary channel based on the isosurface. Uses a 3D ball to dilate with radius 2. This is useful for when there is a slight misalignment, but doesn't take too long."""
+    se = iterate_structure(generate_binary_structure(3, 1), 2)
+    masked = binary_dilation(mask >= level, structure=se)
+    image_3d *= masked
+    return image_3d
 
 
 def query_tree(init_verts, to_map, radius=inf, knn=200):
