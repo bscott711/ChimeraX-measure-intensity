@@ -7,7 +7,7 @@ from numpy import (array, full, inf, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes, all)
 from scipy.ndimage import binary_dilation
 from scipy.ndimage.morphology import (generate_binary_structure,
-                                      iterate_structure)
+                                      iterate_structure, binary_erosion)
 from scipy.spatial import KDTree
 
 
@@ -102,9 +102,12 @@ def get_coords(image_3d):
 
 
 def mask_image(mask, level, image_3d):
-    """Mask the secondary channel based on the isosurface. Uses a 3D ball to dilate with radius 2. This is useful for when there is a slight misalignment, but doesn't take too long."""
+    """Mask the secondary channel based on the isosurface. Uses a 3D ball to dilate and erode with radius 2, then xor to make membrane mask."""
+    mask = mask >= level
     se = iterate_structure(generate_binary_structure(3, 1), 2)
-    masked = binary_dilation(mask >= level, structure=se)
+    mask_d = binary_dilation(mask, structure=se)
+    mask_e = binary_erosion(mask, structure=se, iterations=2)
+    masked = mask_d ^ mask_e
     image_3d *= masked
     return image_3d
 
