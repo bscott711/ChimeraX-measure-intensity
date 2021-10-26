@@ -69,6 +69,13 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
     Use the following for a maximally compressed gltf.
     for /F %x in ('dir /b *.glb') do (gltf-pipeline -i %x -o ./draco/%x -d true --draco.quantizePositionBits 10 --draco.quantizeNormalBits 5)
 
+### If MParallel is installed you can gain a 5x speed increase: [MParallel](https://github.com/lordmulder/MParallel)
+
+    cd X:\\demo_data\\
+
+    Run the Draco compressed batch file in the new directory.
+    $Repo_dir\draco_compressed.bat
+
 ## Compression results
 
 | Surface ID | Raw GLB (KB) | Draco Comressed (KB) | Compression Ratio X |
