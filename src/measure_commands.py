@@ -11,7 +11,7 @@ from scipy.ndimage.morphology import (generate_binary_structure,
 from scipy.spatial import KDTree
 
 
-def distance_series(session, surface, to_surface, knn=5, palette=None,      range=None, key=False):
+def distance_series(session, surface, to_surface, knn=5, palette=None, range=None, key=False):
     """Wrap the distance measurement for list of surfaces."""
     [measure_distance(surface, to_surface, knn)
      for surface, to_surface in zip(surface, to_surface)]
