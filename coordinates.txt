@@ -1,0 +1,12 @@
+.color green
+.dot 430 200 110
+.color white
+.arrow 430 200 110 410 200 110 1 4 .6
+.color green
+.dot 430 200 110
+.color red
+.arrow 430 200 110 430 220 110 1 4 .6
+.color green
+.dot 430 200 110
+.color blue
+.arrow 430 200 110 430 110 130 1 4 .6
