@@ -13,15 +13,14 @@ def create_axis(coords=[430, 200, 110], dist=20, filename='axis.bild'):
              '.color green',
              '.dot {0} {1} {2}'.format(*coords),
              '.color blue',
-             '.arrow {0} {1} {2} {0} {2} {3} 1 4 .6'.format(*coords, coords[2]+dist)]
+             '.arrow {0} {1} {2} {0} {1} {3} 1 4 .6'.format(*coords, coords[2]+dist)]
 
     with open(filename, 'w') as f:
         for line in lines:
             f.write(line)
             f.write('\n')
 
-
-if __name__ == '__main__' or __name__.startswith('ChimeraX'):
+def main(isChimerax=False):
     import argparse
     parser = argparse.ArgumentParser(
         description='Create axes arrow files for ChimeraX.')
@@ -37,3 +36,13 @@ if __name__ == '__main__' or __name__.startswith('ChimeraX'):
                         help="axis.bild")
     args = parser.parse_args()
     create_axis([args.x, args.y, args.z], args.d, args.filename)
+    if isChimerax:
+        from chimerax.core.commands import run
+        run(session,'open {}'.format(args.filename))
+	
+if __name__ == '__main__':
+    main()
+elif __name__.startswith('ChimeraX'):
+    main(isChimerax=True)
+	
+
