@@ -20,29 +20,29 @@ def create_axis(coords=[430, 200, 110], dist=20, filename='axis.bild'):
             f.write(line)
             f.write('\n')
 
+
 def main(isChimerax=False):
     import argparse
     parser = argparse.ArgumentParser(
         description='Create axes arrow files for ChimeraX.')
-    parser.add_argument("x", nargs='?', type=int,
+    parser.add_argument("-x", dest="x", nargs="?", type=int,
                         default=400, help="x: 400")
-    parser.add_argument("y", nargs='?', type=int,
+    parser.add_argument("-y", dest="y", nargs="?", type=int,
                         default=200, help="y: 200")
-    parser.add_argument("z", nargs='?', type=int,
+    parser.add_argument("-z", dest="z", nargs="?", type=int,
                         default=100, help="z: 100")
-    parser.add_argument("d", nargs='?', type=int,
+    parser.add_argument("-d", dest='d', nargs="?", type=int,
                         default=20, help="length: 20")
-    parser.add_argument("--f", dest="filename",nargs='?', type=str, default="axis.bild",
-                        help="axis.bild")
+    parser.add_argument("-f", dest="filename", nargs="?",
+                        type=str, default="axis.bild", help="axis.bild")
     args = parser.parse_args()
     create_axis([args.x, args.y, args.z], args.d, args.filename)
     if isChimerax:
         from chimerax.core.commands import run
-        run(session,'open {}'.format(args.filename))
-	
+        run(session, 'open {}'.format(args.filename))
+
+
 if __name__ == '__main__':
     main()
 elif __name__.startswith('ChimeraX'):
     main(isChimerax=True)
-	
-
