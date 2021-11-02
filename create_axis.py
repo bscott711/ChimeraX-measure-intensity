@@ -21,7 +21,7 @@ def create_axis(coords=[430, 200, 110], dist=20, filename='axis.bild'):
             f.write('\n')
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' or __name__.startswith('ChimeraX'):
     import argparse
     parser = argparse.ArgumentParser(
         description='Create axes arrow files for ChimeraX.')
@@ -33,7 +33,7 @@ if __name__ == '__main__':
                         default=100, help="z: 100")
     parser.add_argument("d", nargs='?', type=int,
                         default=20, help="length: 20")
-    parser.add_argument("filename", nargs='?', type=str, default="axis.bild",
+    parser.add_argument("--f", dest="filename",nargs='?', type=str, default="axis.bild",
                         help="axis.bild")
     args = parser.parse_args()
     create_axis([args.x, args.y, args.z], args.d, args.filename)
