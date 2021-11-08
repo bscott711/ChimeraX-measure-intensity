@@ -82,3 +82,31 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 | :--------: | :----------: | :------------------: | :-----------------: |
 | Surface 1  |    28,922    |         1563         |        18.5         |
 | Surface 47 |    42,248    |         2305         |        18.3         |
+
+## Update to using a more advanced compression algorithm that includes mesh simplification
+
+There is not perceptial difference between the meshes, but the file size says there is a difference.
+
+    Install Gltf-Pack
+    npm install -g gltf-pack
+
+    cd X:\\demo_data\\
+
+    Use the following for a simplified and maximally compressed gltf.
+    if not exist ".\draco" mkdir ".\draco"
+    for /F %x in ('dir /b *.glb') do (gltfpack -i %x -o .\draco\%x -cc -tc -kn -si 0.5 -vp 10 -vt 10 -vn 5)
+
+### The same can be done using MParallel
+
+    cd X:\\demo_data\\
+
+    Run the Draco compressed batch file in the new directory.
+    $Repo_dir\draco_pack.bat
+
+
+## Compression results for gltf-pack
+
+| Surface ID  | Raw GLB (KB) | Draco Comressed (KB) | Compression Ratio X |
+| :---------: | :----------: | :------------------: | :-----------------: |
+| Surface 10  |    31,145    |         1538         |        20.25        |
+| Surface 130 |    44,943    |         2491         |        18.04        |
