@@ -78,7 +78,7 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 
 ## Compression results
 
-| Surface ID | Raw GLB (KB) | Draco Comressed (KB) | Compression Ratio X |
+| Surface ID | Raw GLB (KB) | Draco Compressed (KB) | Compression Ratio X |
 | :--------: | :----------: | :------------------: | :-----------------: |
 | Surface 1  |    28,922    |         1563         |        18.5         |
 | Surface 47 |    42,248    |         2305         |        18.3         |
@@ -106,7 +106,7 @@ There is not perceptial difference between the meshes, but the file size says th
 
 ## Compression results for gltf-pack
 
-| Surface ID  | Raw GLB (KB) | Draco Comressed (KB) | Compression Ratio X |
+| Surface ID  | Raw GLB (KB) | Draco Compressed (KB) | Compression Ratio X |
 | :---------: | :----------: | :------------------: | :-----------------: |
 | Surface 10  |    31,145    |         1538         |        20.25        |
 | Surface 130 |    44,943    |         2491         |        18.04        |
