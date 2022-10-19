@@ -39,7 +39,6 @@ Raw glb file from chimeraX: 36127 KB
 |7|1196|Highest|92%|
 |8|1302|Highest|New Default Setting (used PosQ 10 from above)|
 
-
 ### compressionLevel has no impact on size beyond 7 which is the default
 
 ### quantizeColorBits has no impact on the size or quality. Use the default of 8

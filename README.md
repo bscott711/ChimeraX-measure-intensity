@@ -85,7 +85,7 @@ Once the refactoring was complete, this reduced this to ~3 seconds.
 
 ## Update to using a more advanced compression algorithm that includes mesh simplification
 
-There is not perceptial difference between the meshes, but the file size says there is a difference.
+There is no perceptual difference between the meshes, but the file size tells us there is a difference, and the loading time does as well.
 
     Install Gltf-Pack
     npm install -g gltf-pack
@@ -102,7 +102,6 @@ There is not perceptial difference between the meshes, but the file size says th
 
     Run the Draco compressed batch file in the new directory.
     $Repo_dir\draco_pack.bat
-
 
 ## Compression results for gltf-pack
 
