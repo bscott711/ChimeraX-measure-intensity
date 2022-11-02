@@ -25,6 +25,13 @@ def intensity_series(session, surface, to_map, radius=15, palette=None, range=No
     recolor_surfaces(session, surface, 'intensity', palette, range, key)
 
 
+def composite_series(session, surface, green_map, magenta_map, radius=15, palette='green_magenta', green_range=None, magenta_range=None):
+    """Wrap the composite measurement for list of surfaces."""
+    [measure_composite(surface, green_map, magenta_map, radius)
+        for surface, green_map, magenta_map in zip(surface, green_map, magenta_map)]
+    recolor_composites(session, surface, palette, green_range, magenta_range)
+
+
 def recolor_surfaces(session, surface, metric='intensity', palette=None, range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
     keys = full(len(surface), False)
@@ -33,38 +40,10 @@ def recolor_surfaces(session, surface, metric='intensity', palette=None, range=N
      for surface, key in zip(surface, keys)]
 
 
-def recolor_surface(session, surface, metric, palette, range, key):
-    """Colors surface based on previously measured intensity or distance"""
-    if metric == 'distance' and hasattr(surface, 'distance'):
-        measurement = surface.distance
-        palette_string = 'brbg'
-        max_range = 15
-    elif metric == 'intensity' and hasattr(surface, 'intensity'):
-        measurement = surface.intensity
-        palette_string = 'purples'
-        max_range = 5
-    else:
-        return
-
-    # If all the measurements are np.nan set them to zero.
-    if all(measurement != measurement):
-        measurement[:] = 0
-
-    if palette is None:
-        palette = colors.BuiltinColormaps[palette_string]
-
-    if range is not None and range != 'full':
-        rmin, rmax = range
-    elif range == 'full':
-        rmin, rmax = nanmin(measurement), nanmax(measurement)
-    else:
-        rmin, rmax = (0, max_range)
-
-    cmap = palette.rescale_range(rmin, rmax)
-    surface.vertex_colors = cmap.interpolated_rgba8(measurement)
-
-    if key:
-        show_key(session, cmap)
+def recolor_composites(session, surface, palette='green_magenta', green_range=None, magenta_range=None):
+    """Wraps composite_color in a list comprehension"""
+    [composite_color(session, surface, palette, green_range, magenta_range)
+     for surface in surface]
 
 
 def measure_distance(surface, to_surface, knn):
@@ -138,6 +117,111 @@ def local_intensity(flat_img, pixels, index):
     return face_int/face_int.mean()
 
 
+def get_image_coords(surface, image):
+    """Get the image coordinates for use in KDTree."""
+    image_info = get_image(surface, image)
+    masked_image = mask_image(*image_info)
+    image_coords, *flattened_indices = get_coords(masked_image)
+    return image_coords, *flattened_indices
+
+
+def measure_composite(surface, green_map, magenta_map, radius):
+    """Measure the local intensity for 2 channels within radius r of the surface."""
+    image_coords, * \
+        green_flattened_indices = get_image_coords(surface, green_map)
+    _, index = query_tree(surface.vertices, image_coords.T, radius)
+    green_intensity = local_intensity(*green_flattened_indices, index)
+    _, *magenta_flattened_indices = get_image_coords(surface, magenta_map)
+    magenta_intensity = local_intensity(*magenta_flattened_indices, index)
+
+    surface.ch_1 = green_intensity
+    surface.ch_2 = magenta_intensity
+
+
+def recolor_surface(session, surface, metric, palette, range, key):
+    """Colors surface based on previously measured intensity or distance"""
+    if metric == 'distance' and hasattr(surface, 'distance'):
+        measurement = surface.distance
+        palette_string = 'brbg'
+        max_range = 15
+    elif metric == 'intensity' and hasattr(surface, 'intensity'):
+        measurement = surface.intensity
+        palette_string = 'purples'
+        max_range = 5
+    else:
+        return
+
+    # If all the measurements are np.nan set them to zero.
+    if all(measurement != measurement):
+        measurement[:] = 0
+
+    if palette is None:
+        palette = colors.BuiltinColormaps[palette_string]
+
+    if range is not None and range != 'full':
+        rmin, rmax = range
+    elif range == 'full':
+        rmin, rmax = nanmin(measurement), nanmax(measurement)
+    else:
+        rmin, rmax = (0, max_range)
+
+    cmap = palette.rescale_range(rmin, rmax)
+    surface.vertex_colors = cmap.interpolated_rgba8(measurement)
+
+    if key:
+        show_key(session, cmap)
+
+
+def composite_color(surface, palette, green_range, magenta_range):
+    """Colors surface based on previously measured intensity or distance"""
+    if hasattr(surface, 'ch1') and hasattr(surface, 'ch2'):
+        if palette == 'green_magenta':
+            green_channel = surface.ch1
+            magenta_channel = surface.ch2
+        elif palette == 'magenta_green':
+            green_channel = surface.ch2
+            magenta_channel = surface.ch1
+    else:
+        return
+
+    # If all the measurements are np.nan set them to zero.
+    if all(green_channel != green_channel):
+        green_channel[:] = 0
+    if all(magenta_channel != magenta_channel):
+        magenta_channel[:] = 0
+
+    if green_range is not None and green_range != 'full':
+        green_min, green_max = green_range
+    elif green_range == 'full':
+        green_min, green_max = nanmin(green_channel), nanmax(green_channel)
+    else:
+        green_min, green_max = (0, 3)
+
+    if magenta_range is not None and magenta_range != 'full':
+        magenta_min, magenta_max = magenta_range
+    elif magenta_range == 'full':
+        magenta_min, magenta_max = nanmin(
+            magenta_channel), nanmax(magenta_channel)
+    else:
+        magenta_min, magenta_max = (0, 3)
+
+    # Define the color palettes.
+    green_palette = colors.BuiltinColormaps['green']
+    magenta_palette = colors.BuiltinColormaps['magenta']
+    green_map = green_palette.rescale_range(green_min, green_max)
+    magenta_map = magenta_palette.rescale_range(magenta_min, magenta_max)
+    gmap = green_map.interpolated_rgb8(green_channel)
+    mmap = magenta_map.interpolated_rgb8(magenta_channel)
+
+    # Build the composite vertex colors
+    composite_map = array(gmap)
+    composite_map[:, 1] = gmap[:, 1]
+    composite_map[:, 0] = mmap[:, 0]
+    composite_map[:, 2] = mmap[:, 2]
+
+    surface.vertex_colors = composite_map
+
+
 measure_distance_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_surface', SurfacesArg),
@@ -160,6 +244,17 @@ measure_intensity_desc = CmdDesc(
     synopsis='Measure local intensity relative to surface')
 
 
+measure_composite_desc = CmdDesc(
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_green_map', SurfacesArg),
+             ('to_magenta_map', SurfacesArg),
+             ('radius', Bounded(IntArg, 1, 30)),
+             ('green_range', ColormapRangeArg),
+             ('magenta_range', ColormapRangeArg)],
+    required_arguments=['to_green_map', 'to_magenta_map'],
+    synopsis='Measure local intensities of two channels relative to surface')
+
+
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('metric', EnumOf(['intensity', 'distance'])),
@@ -167,3 +262,11 @@ recolor_surfaces_desc = CmdDesc(
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
     synopsis='Recolor surface based on previous measurement')
+
+
+color_composite_surfaces_desc = CmdDesc(
+    required=[('surface', SurfacesArg)],
+    keyword=[('palette', EnumOf(['green_magenta', 'magenta_green'])),
+             ('grn_range', ColormapRangeArg),
+             ('mag_range', ColormapRangeArg)],
+    synopsis='Color surface based on previous measurement in as a composite')

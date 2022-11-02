@@ -36,6 +36,12 @@ class _MyAPI(BundleAPI):
         elif ci.name == "surface recolor":
             func = measure_commands.recolor_surfaces
             desc = measure_commands.recolor_surfaces_desc
+        elif ci.name == "measure composite":
+            func = measure_commands.composite_series
+            desc = measure_commands.measure_composite_desc
+        elif ci.name == "surface recolor composite":
+            func = measure_commands.recolor_composites
+            desc = measure_commands.color_composite_surfaces_desc
         else:
             raise ValueError(
                 "trying to register unknown command: %s" % ci.name)
