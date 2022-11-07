@@ -3,11 +3,12 @@ from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, IntArg, SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from numpy import (array, full, inf, nanmax, nanmean, nanmin,
-                   ravel_multi_index, swapaxes, all)
+from numpy import (all, array, full, inf, nanmax, nanmean, nanmin,
+                   ravel_multi_index, swapaxes)
 from scipy.ndimage import binary_dilation
-from scipy.ndimage.morphology import (generate_binary_structure,
-                                      iterate_structure, binary_erosion)
+from scipy.ndimage.morphology import (binary_erosion,
+                                      generate_binary_structure,
+                                      iterate_structure)
 from scipy.spatial import KDTree
 
 
@@ -60,6 +61,18 @@ def measure_intensity(surface, to_map, radius):
     _, index = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(*flattened_indices, index)
     surface.intensity = face_intensity
+
+
+def measure_composite(surface, green_map, magenta_map, radius):
+    """Measure the local intensity for 2 channels within radius r of the surface."""
+    green_coords, *green_indices = get_image_coords(surface, green_map)
+    _, green_index = query_tree(surface.vertices, green_coords.T, radius)
+    green_intensity = local_intensity(*green_indices, green_index)
+    magenta_coords, *magenta_indices = get_image_coords(surface, magenta_map)
+    _, magenta_index = query_tree(surface.vertices, magenta_coords.T, radius)
+    magenta_intensity = local_intensity(*magenta_indices, magenta_index)
+    surface.ch1 = green_intensity
+    surface.ch2 = magenta_intensity
 
 
 def get_image(surface, to_map):
@@ -125,19 +138,6 @@ def get_image_coords(surface, image):
     return image_coords, *flattened_indices
 
 
-def measure_composite(surface, green_map, magenta_map, radius):
-    """Measure the local intensity for 2 channels within radius r of the surface."""
-    image_coords, * \
-        green_flattened_indices = get_image_coords(surface, green_map)
-    _, index = query_tree(surface.vertices, image_coords.T, radius)
-    green_intensity = local_intensity(*green_flattened_indices, index)
-    _, *magenta_flattened_indices = get_image_coords(surface, magenta_map)
-    magenta_intensity = local_intensity(*magenta_flattened_indices, index)
-
-    surface.ch_1 = green_intensity
-    surface.ch_2 = magenta_intensity
-
-
 def recolor_surface(session, surface, metric, palette, range, key):
     """Colors surface based on previously measured intensity or distance"""
     if metric == 'distance' and hasattr(surface, 'distance'):
@@ -172,15 +172,15 @@ def recolor_surface(session, surface, metric, palette, range, key):
         show_key(session, cmap)
 
 
-def composite_color(surface, palette, green_range, magenta_range):
+def composite_color(session, surface, palette, green_range, magenta_range):
     """Colors surface based on previously measured intensity or distance"""
     if hasattr(surface, 'ch1') and hasattr(surface, 'ch2'):
-        if palette == 'green_magenta':
-            green_channel = surface.ch1
-            magenta_channel = surface.ch2
-        elif palette == 'magenta_green':
+        if palette == 'magenta_green':
             green_channel = surface.ch2
             magenta_channel = surface.ch1
+        else:
+            green_channel = surface.ch1
+            magenta_channel = surface.ch2
     else:
         return
 
@@ -195,7 +195,7 @@ def composite_color(surface, palette, green_range, magenta_range):
     elif green_range == 'full':
         green_min, green_max = nanmin(green_channel), nanmax(green_channel)
     else:
-        green_min, green_max = (0, 3)
+        green_min, green_max = (0, 30)
 
     if magenta_range is not None and magenta_range != 'full':
         magenta_min, magenta_max = magenta_range
@@ -203,15 +203,20 @@ def composite_color(surface, palette, green_range, magenta_range):
         magenta_min, magenta_max = nanmin(
             magenta_channel), nanmax(magenta_channel)
     else:
-        magenta_min, magenta_max = (0, 3)
+        magenta_min, magenta_max = (0, 30)
 
     # Define the color palettes.
-    green_palette = colors.BuiltinColormaps['green']
-    magenta_palette = colors.BuiltinColormaps['magenta']
-    green_map = green_palette.rescale_range(green_min, green_max)
-    magenta_map = magenta_palette.rescale_range(magenta_min, magenta_max)
-    gmap = green_map.interpolated_rgb8(green_channel)
-    mmap = magenta_map.interpolated_rgb8(magenta_channel)
+    gvals = ['#003c00', '#00b400']
+    gvals = [colors.Color(v) for v in gvals]
+    green = colors.Colormap(None, gvals)
+    green_palette = green.rescale_range(green_min, green_max)
+    gmap = green_palette.interpolated_rgba8(green_channel)
+
+    mvals = ['#3c003c', '#b400b4']
+    mvals = [colors.Color(v) for v in mvals]
+    magenta = colors.Colormap(None, mvals)
+    magenta_palette = magenta.rescale_range(magenta_min, magenta_max)
+    mmap = magenta_palette.interpolated_rgba8(magenta_channel)
 
     # Build the composite vertex colors
     composite_map = array(gmap)
@@ -246,12 +251,13 @@ measure_intensity_desc = CmdDesc(
 
 measure_composite_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('to_green_map', SurfacesArg),
-             ('to_magenta_map', SurfacesArg),
+    keyword=[('green_map', SurfacesArg),
+             ('magenta_map', SurfacesArg),
              ('radius', Bounded(IntArg, 1, 30)),
+             ('palette', 'green_magenta'),
              ('green_range', ColormapRangeArg),
              ('magenta_range', ColormapRangeArg)],
-    required_arguments=['to_green_map', 'to_magenta_map'],
+    required_arguments=['green_map', 'magenta_map'],
     synopsis='Measure local intensities of two channels relative to surface')
 
 
@@ -261,12 +267,14 @@ recolor_surfaces_desc = CmdDesc(
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
+    required_arguments=[],
     synopsis='Recolor surface based on previous measurement')
 
 
-color_composite_surfaces_desc = CmdDesc(
+recolor_composites_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('palette', EnumOf(['green_magenta', 'magenta_green'])),
-             ('grn_range', ColormapRangeArg),
-             ('mag_range', ColormapRangeArg)],
-    synopsis='Color surface based on previous measurement in as a composite')
+             ('green_range', ColormapRangeArg),
+             ('magenta_range', ColormapRangeArg)],
+    required_arguments=[],
+    synopsis='Recolor surface based on previous measurements as a composite')
