@@ -254,7 +254,6 @@ measure_composite_desc = CmdDesc(
     keyword=[('green_map', SurfacesArg),
              ('magenta_map', SurfacesArg),
              ('radius', Bounded(IntArg, 1, 30)),
-             ('palette', 'green_magenta'),
              ('green_range', ColormapRangeArg),
              ('magenta_range', ColormapRangeArg)],
     required_arguments=['green_map', 'magenta_map'],

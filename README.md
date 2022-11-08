@@ -109,3 +109,11 @@ There is no perceptual difference between the meshes, but the file size tells us
 | :---------: | :----------: | :------------------: | :-----------------: |
 | Surface 10  |    31,145    |         1538         |        20.25        |
 | Surface 130 |    44,943    |         2491         |        18.04        |
+
+## If the files need renamed, you can do that using Powershell
+
+Move into the folder and run the following:
+    Get-ChildItem *.glb | Rename-Item -NewName { $_.Name -replace 'Surfaces_','Eat_' }
+
+The first string is the original file name and the second string will be what it is replaced with
+It is recommended to have an underscore before the number so that is all that changes as it is indexed.

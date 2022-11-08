@@ -49,7 +49,7 @@ class _MyAPI(BundleAPI):
             desc.synopsis = ci.synopsis
 
         from chimerax.core.commands import register
-        register(ci.name, desc, func)
+        register(ci.name, desc, func, logger=logger)
 
 
 # Create the ``bundle_api`` object that ChimeraX expects.
