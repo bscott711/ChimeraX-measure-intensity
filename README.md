@@ -116,4 +116,4 @@ Move into the folder and run the following:
     Get-ChildItem *.glb | Rename-Item -NewName { $_.Name -replace 'Surfaces_','Eat_' }
 
 The first string is the original file name and the second string will be what it is replaced with
-It is recommended to have an underscore before the number so that is all that changes as it is indexed.
+It is recommended to have an underscore before the number so that is all that changes as it is indexed

@@ -1,7 +1,7 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
-                                    ColormapRangeArg, IntArg, SurfacesArg)
+                                    ColormapRangeArg, IntArg, Int2Arg, SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
 from numpy import (all, array, full, inf, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
@@ -41,9 +41,9 @@ def recolor_surfaces(session, surface, metric='intensity', palette=None, range=N
      for surface, key in zip(surface, keys)]
 
 
-def recolor_composites(session, surface, palette='green_magenta', green_range=None, magenta_range=None):
+def recolor_composites(session, surface, palette='green_magenta', green_range=None, magenta_range=None, palette_range=(40, 240)):
     """Wraps composite_color in a list comprehension"""
-    [composite_color(session, surface, palette, green_range, magenta_range)
+    [composite_color(session, surface, palette, green_range, magenta_range, palette_range)
      for surface in surface]
 
 
@@ -172,7 +172,7 @@ def recolor_surface(session, surface, metric, palette, range, key):
         show_key(session, cmap)
 
 
-def composite_color(session, surface, palette, green_range, magenta_range):
+def composite_color(session, surface, palette, green_range, magenta_range, palette_range):
     """Colors surface based on previously measured intensity or distance"""
     if hasattr(surface, 'ch1') and hasattr(surface, 'ch2'):
         if palette == 'magenta_green':
@@ -206,13 +206,18 @@ def composite_color(session, surface, palette, green_range, magenta_range):
         magenta_min, magenta_max = (0, 30)
 
     # Define the color palettes.
-    gvals = ['#003c00', '#00b400']
+    # gvals = ['#003c00', '#00b400']
+    low = palette_range[0]
+    high = palette_range[1]
+    gvals = ["#00{:02x}00".format(low), "#00{:02x}00".format(high)]
     gvals = [colors.Color(v) for v in gvals]
     green = colors.Colormap(None, gvals)
     green_palette = green.rescale_range(green_min, green_max)
     gmap = green_palette.interpolated_rgba8(green_channel)
 
-    mvals = ['#3c003c', '#b400b4']
+    # mvals = ['#3c003c', '#b400b4']
+    mvals = ["#{:02x}00{:02x}".format(low, low),
+             "#{:02x}00{:02x}".format(high, high)]
     mvals = [colors.Color(v) for v in mvals]
     magenta = colors.Colormap(None, mvals)
     magenta_palette = magenta.rescale_range(magenta_min, magenta_max)
@@ -274,6 +279,7 @@ recolor_composites_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('palette', EnumOf(['green_magenta', 'magenta_green'])),
              ('green_range', ColormapRangeArg),
-             ('magenta_range', ColormapRangeArg)],
+             ('magenta_range', ColormapRangeArg),
+             ('palette_range', Int2Arg)],
     required_arguments=[],
     synopsis='Recolor surface based on previous measurements as a composite')
