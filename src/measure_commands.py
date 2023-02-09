@@ -6,7 +6,7 @@ from chimerax.core.commands.cli import EnumOf
 from numpy import (all, array, full, inf, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.ndimage import binary_dilation
-from scipy.ndimage.morphology import (binary_erosion,
+from scipy.ndimage import (binary_erosion,
                                       generate_binary_structure,
                                       iterate_structure)
 from scipy.spatial import KDTree
