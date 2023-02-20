@@ -8,14 +8,13 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
-                                    ColormapRangeArg, IntArg, Int2Arg, SurfacesArg)
+                                    ColormapRangeArg, Int2Arg, IntArg,
+                                    SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from numpy import (all, array, full, inf, nanmax, nanmean, nanmin,
+from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
-from scipy.ndimage import binary_dilation
-from scipy.ndimage import (binary_erosion,
-                                      generate_binary_structure,
-                                      iterate_structure)
+from scipy.ndimage import (binary_dilation, binary_erosion,
+                           generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
 
 
@@ -159,7 +158,7 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         return
 
     # If all the measurements are np.nan set them to zero.
-    if all(measurement != measurement):
+    if isnan(measurement).all():
         measurement[:] = 0
 
     if palette is None:
@@ -192,43 +191,19 @@ def composite_color(session, surface, palette, green_range, magenta_range, palet
         return
 
     # If all the measurements are np.nan set them to zero.
-    if all(green_channel != green_channel):
+    if isnan(green_channel).all():
         green_channel[:] = 0
-    if all(magenta_channel != magenta_channel):
+    if isnan(magenta_channel).all():
         magenta_channel[:] = 0
 
-    if green_range is not None and green_range != 'full':
-        green_min, green_max = green_range
-    elif green_range == 'full':
-        green_min, green_max = nanmin(green_channel), nanmax(green_channel)
-    else:
-        green_min, green_max = (0, 30)
-
-    if magenta_range is not None and magenta_range != 'full':
-        magenta_min, magenta_max = magenta_range
-    elif magenta_range == 'full':
-        magenta_min, magenta_max = nanmin(
-            magenta_channel), nanmax(magenta_channel)
-    else:
-        magenta_min, magenta_max = (0, 30)
+    green_range = scale_range(green_range, green_channel)
+    magenta_range = scale_range(magenta_range, magenta_channel)
 
     # Define the color palettes.
     # gvals = ['#003c00', '#00b400']
-    low = palette_range[0]
-    high = palette_range[1]
-
-    gvals = [f'#00{low:02x}00', f'#00{high:02x}00']
-    gvals = [colors.Color(v) for v in gvals]
-    green = colors.Colormap(None, gvals)
-    green_palette = green.rescale_range(green_min, green_max)
-    gmap = green_palette.interpolated_rgba8(green_channel)
-
     # mvals = ['#3c003c', '#b400b4']
-    mvals = [f'#{low:02x}00{low:02x}', f'#{high:02x}00{high:02x}']
-    mvals = [colors.Color(v) for v in mvals]
-    magenta = colors.Colormap(None, mvals)
-    magenta_palette = magenta.rescale_range(magenta_min, magenta_max)
-    mmap = magenta_palette.interpolated_rgba8(magenta_channel)
+    gmap = make_palette(green_channel, green_range, palette_range)
+    mmap = make_palette(magenta_channel, magenta_range, palette_range,'magenta')
 
     # Build the composite vertex colors
     composite_map = array(gmap)
@@ -237,6 +212,28 @@ def composite_color(session, surface, palette, green_range, magenta_range, palet
     composite_map[:, 2] = mmap[:, 2]
 
     surface.vertex_colors = composite_map
+
+def make_palette(channel_data, color_range, palette_range, palette='green'):
+    """Helper function to make the new color palette"""
+    low, high = palette_range
+    if palette == 'green':
+        vals = [f'#00{low:02x}00', f'#00{high:02x}00']
+    else:
+        vals = [f'#{low:02x}00{low:02x}', f'#{high:02x}00{high:02x}']
+
+    vals = [colors.Color(v) for v in vals]
+    color = colors.Colormap(None, vals)
+    palette = color.rescale_range(color_range[0],color_range[1])
+    colormap = palette.interpolated_rgba8(channel_data)
+
+    return colormap
+
+def scale_range(color_range=(0,30), channel=None):
+    """Helper function to set the color range"""
+    if color_range == 'full':
+        color_range = nanmin(channel), nanmax(channel)
+
+    return color_range
 
 
 measure_distance_desc = CmdDesc(
