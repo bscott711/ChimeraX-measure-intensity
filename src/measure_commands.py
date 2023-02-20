@@ -1,3 +1,10 @@
+"""These commands will measure intensity and distances between surfaces in ChimeraX"""
+#pylint: disable=redefined-builtin
+#pylint: disable=expression-not-assigned
+#pylint: disable=line-too-long
+#pylint: disable=unused-argument
+#pylint: disable=too-many-arguments
+
 from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
@@ -12,18 +19,18 @@ from scipy.ndimage import (binary_erosion,
 from scipy.spatial import KDTree
 
 
-def distance_series(session, surface, to_surface, knn=5, palette=None, range=None, key=False):
+def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
     """Wrap the distance measurement for list of surfaces."""
     [measure_distance(surface, to_surface, knn)
      for surface, to_surface in zip(surface, to_surface)]
-    recolor_surfaces(session, surface, 'distance', palette, range, key)
+    recolor_surfaces(session, surface, 'distance', palette, color_range, key)
 
 
-def intensity_series(session, surface, to_map, radius=15, palette=None, range=None, key=False):
+def intensity_series(session, surface, to_map, radius=15, palette=None, color_range=None, key=False):
     """Wrap the intensity measurement for list of surfaces."""
     [measure_intensity(surface, to_map, radius)
      for surface, to_map in zip(surface, to_map)]
-    recolor_surfaces(session, surface, 'intensity', palette, range, key)
+    recolor_surfaces(session, surface, 'intensity', palette, color_range, key)
 
 
 def composite_series(session, surface, green_map, magenta_map, radius=15, palette='green_magenta', green_range=None, magenta_range=None):
@@ -33,11 +40,11 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def recolor_surfaces(session, surface, metric='intensity', palette=None, range=None, key=False):
+def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
     keys = full(len(surface), False)
     keys[0] = key
-    [recolor_surface(session, surface, metric, palette, range, key)
+    [recolor_surface(session, surface, metric, palette, color_range, key)
      for surface, key in zip(surface, keys)]
 
 
@@ -96,9 +103,9 @@ def get_coords(image_3d):
 def mask_image(mask, level, image_3d):
     """Mask the secondary channel based on the isosurface. Uses a 3D ball to dilate and erode with radius 2, then xor to make membrane mask."""
     mask = mask >= level
-    se = iterate_structure(generate_binary_structure(3, 1), 2)
-    mask_d = binary_dilation(mask, structure=se)
-    mask_e = binary_erosion(mask, structure=se, iterations=2)
+    struct_el = iterate_structure(generate_binary_structure(3, 1), 2)
+    mask_d = binary_dilation(mask, structure=struct_el)
+    mask_e = binary_erosion(mask, structure=struct_el, iterations=2)
     masked = mask_d ^ mask_e
     image_3d *= masked
     return image_3d
@@ -138,7 +145,7 @@ def get_image_coords(surface, image):
     return image_coords, *flattened_indices
 
 
-def recolor_surface(session, surface, metric, palette, range, key):
+def recolor_surface(session, surface, metric, palette, color_range, key):
     """Colors surface based on previously measured intensity or distance"""
     if metric == 'distance' and hasattr(surface, 'distance'):
         measurement = surface.distance
@@ -158,9 +165,9 @@ def recolor_surface(session, surface, metric, palette, range, key):
     if palette is None:
         palette = colors.BuiltinColormaps[palette_string]
 
-    if range is not None and range != 'full':
-        rmin, rmax = range
-    elif range == 'full':
+    if color_range is not None and color_range != 'full':
+        rmin, rmax = color_range
+    elif color_range == 'full':
         rmin, rmax = nanmin(measurement), nanmax(measurement)
     else:
         rmin, rmax = (0, max_range)
@@ -209,15 +216,15 @@ def composite_color(session, surface, palette, green_range, magenta_range, palet
     # gvals = ['#003c00', '#00b400']
     low = palette_range[0]
     high = palette_range[1]
-    gvals = ["#00{:02x}00".format(low), "#00{:02x}00".format(high)]
+
+    gvals = [f'#00{low:02x}00', f'#00{high:02x}00']
     gvals = [colors.Color(v) for v in gvals]
     green = colors.Colormap(None, gvals)
     green_palette = green.rescale_range(green_min, green_max)
     gmap = green_palette.interpolated_rgba8(green_channel)
 
     # mvals = ['#3c003c', '#b400b4']
-    mvals = ["#{:02x}00{:02x}".format(low, low),
-             "#{:02x}00{:02x}".format(high, high)]
+    mvals = [f'#{low:02x}00{low:02x}', f'#{high:02x}00{high:02x}']
     mvals = [colors.Color(v) for v in mvals]
     magenta = colors.Colormap(None, mvals)
     magenta_palette = magenta.rescale_range(magenta_min, magenta_max)

@@ -1,3 +1,4 @@
+"""Initialization function to generate ChimeraX Function"""
 # vim: set expandtab shiftwidth=4 softtabstop=4:
 
 # === UCSF ChimeraX Copyright ===
@@ -12,7 +13,12 @@
 # === UCSF ChimeraX Copyright ===
 
 from chimerax.core.toolshed import BundleAPI
+from chimerax.core.commands import register
+from . import measure_commands
 
+# pylint: disable=abstract-method
+# pylint: disable=arguments-differ
+# pylint: disable=unused-argument
 
 # Subclass from chimerax.core.toolshed.BundleAPI and
 # override the method for registering commands,
@@ -26,7 +32,8 @@ class _MyAPI(BundleAPI):
     # Override method
     @staticmethod
     def register_command(bi, ci, logger):
-        from . import measure_commands
+        """Register command in ChimeraX"""
+
         if ci.name == "measure distance":
             func = measure_commands.distance_series
             desc = measure_commands.measure_distance_desc
@@ -44,11 +51,9 @@ class _MyAPI(BundleAPI):
             desc = measure_commands.recolor_composites_desc
         else:
             raise ValueError(
-                "trying to register unknown command: %s" % ci.name)
+                f'Trying to register unknown command: {ci.name}')
         if desc.synopsis is None:
             desc.synopsis = ci.synopsis
-
-        from chimerax.core.commands import register
         register(ci.name, desc, func, logger=logger)
 
 
