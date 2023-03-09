@@ -1,7 +1,7 @@
 """Calculate distance theta and phi that describes a point from a centroid"""
 """Test Data location X:\Phagocytosis\sRBC\20190614cs1\track_4\test"""
 
-from numpy import arccos, arctan, split, sqrt, subtract,sign
+from numpy import arccos, arctan, split, sqrt, subtract,sign, mean
 
 """Calculate distance theta and phi that describes a point from a centroid"""
 
@@ -12,7 +12,7 @@ def spherical_measurement(surface, to_cell):
     """to_cell: target image we are using to generate a center point"""
     """surface: the cenn of interest to consider for making our measurments"""
 
-    centroid = to_cell.vertices.mean()
+    centroid = mean(to_cell.vertices, axis=0)
 
     # pylint: disable-next=unbalanced-tuple-unpacking
     x_coord, y_coord, z_coord = split(subtract(centroid, surface.vertices), 3, 1)

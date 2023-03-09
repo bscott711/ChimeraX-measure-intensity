@@ -40,6 +40,7 @@ will be displayed without the ChimeraX- prefix.
     <ChimeraXClassifier>ChimeraX :: Command :: measure composite :: Volume Data :: Color surface based on local intensities as composite</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: surface recolor :: Volume Data :: Recolor surface based on previous measurement</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: surface composite :: Volume Data :: Recolor surface as composite based on previous measurements</ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Command :: measure topology :: Volume Data :: Map color metricly the surface topology metrics</ChimeraXClassifier>
   </Classifiers>
 
 </BundleInfo>

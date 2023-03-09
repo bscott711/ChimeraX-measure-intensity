@@ -15,7 +15,7 @@ from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
-from numpy import arccos, arctan, split, sqrt, subtract
+from numpy import arccos, arctan, split, sqrt, subtract, sign, mean
 from scipy.spatial import KDTree
 
 
@@ -39,6 +39,11 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
         for surface, green_map, magenta_map in zip(surface, green_map, magenta_map)]
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
+def topology_series(session, surface, to_cell, metric= None, palette='magenta', color_range= None, key=False):
+    """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
+    [measure_topology(surface, to_cell, metric)
+        for surface, to_cell in zip(surface, to_cell)]
+    recolor_surfaces(session, surface, metric, palette, color_range, key)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -58,6 +63,30 @@ def measure_distance(surface, to_surface, knn):
     """Measure the local motion of two surfaces."""
     distance, _ = query_tree(surface.vertices, to_surface.vertices, knn=knn)
     surface.distance = distance
+
+def measure_topology(surface, to_cell, metric):
+    "this is ment to output a color mapped for topology metrics (phi, theta and distance (R) from the target centroid) YML author"
+    centroid = mean(to_cell.vertices, axis=0)
+    x_coord, y_coord, z_coord = split(subtract(centroid, surface.vertices), 3, 1)
+
+    z_squared = z_coord ** 2
+    y_squared = y_coord ** 2
+    x_squared = x_coord ** 2
+
+    R = sqrt(z_squared + y_squared + x_squared)
+
+    distxy = sqrt(x_squared + y_squared)
+
+    theta = sign(y_coord)*arccos(x_coord / distxy)
+
+    phi = arccos(z_coord / R)
+    
+    if metric == 'R':
+        surface.RadialDistance= R
+    elif metric == 'theta':
+        surface.theta= theta
+    elif metric == 'phi':
+        surface.phi= phi
 
 
 def measure_intensity(surface, to_map, radius):
@@ -155,6 +184,24 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.intensity
         palette_string = 'purples'
         max_range = 5
+    elif metric == 'R' and hasattr(surface, 'RadialDistance'):
+        palette = None
+        color_range = 'full'
+        measurement = surface.RadialDistance[:,0]
+        palette_string = 'brbg'
+        max_range = 100
+    elif metric == 'theta' and hasattr(surface, 'theta'):
+        palette = None
+        color_range = 'full'
+        measurement = surface.theta[:,0]
+        palette_string = 'brbg'
+        max_range = 15
+    elif metric == 'phi' and hasattr(surface, 'phi'):
+        palette = None
+        color_range = 'full'
+        measurement = surface.phi[:,0]
+        palette_string = 'brbg'
+        max_range = 15
     else:
         return
 
@@ -289,3 +336,13 @@ recolor_composites_desc = CmdDesc(
              ('palette_range', Int2Arg)],
     required_arguments=[],
     synopsis='Recolor surface based on previous measurements as a composite')
+
+measure_topology_desc = CmdDesc(
+    required=[('surface', SurfacesArg)],
+    keyword=[('to_cell', SurfacesArg),
+             ('metric', EnumOf(['R', 'theta', 'phi'])),
+             ('palette', ColormapArg),
+             ('range', ColormapRangeArg),
+             ('key', BoolArg)],
+    required_arguments=['to_cell'],
+    synopsis='Measure local distance between two surfaces yml')
