@@ -15,6 +15,7 @@ from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
+from numpy import arccos, arctan, split, sqrt, subtract
 from scipy.spatial import KDTree
 
 
@@ -234,6 +235,7 @@ def scale_range(color_range=(0,30), channel=None):
         color_range = nanmin(channel), nanmax(channel)
 
     return color_range
+
 
 
 measure_distance_desc = CmdDesc(
