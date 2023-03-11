@@ -216,7 +216,7 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         palette = None
         color_range = 'full'
         measurement = surface.RadialDistanceAbovePhiLimitxy[:,0]
-        palette_string = 'brbg'
+        palette_string = 'purples'
         max_range = 100
     elif metric == 'theta' and hasattr(surface, 'theta'):
         palette = None
