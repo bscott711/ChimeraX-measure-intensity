@@ -16,6 +16,7 @@ from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from numpy import arccos, arctan, split, sqrt, subtract, sign, mean, pi, zeros, size, nan, shape
+from matplotlib import pyplot
 from scipy.spatial import KDTree
 
 
@@ -83,15 +84,18 @@ def measure_topology(surface, to_cell, metric):
     
     if metric == 'R':
         surface.RadialDistance= R
-    elif metric == 'Rphinan':
+    elif metric == 'rpg':
         a = array((phi[:])*(180/pi))
-        b= zeros(shape(a))
+        b = array((distxy[:])*0.1208)
+        c = zeros( shape(a) )
         for i in range(size(a)):
-            if a[i] >= 90:
-                b[i]= phi[i]
+            if a[i] >= 90 and b[i] <= 8:
+                c[i]= phi[i]
             else:
-                b[i]= nan
-        surface.RadialDistanceAbovePhinan = (R * (b))
+                c[i]= nan
+        surface.RadialDistanceAbovePhiLimitxy = (R * (c))
+        surface.IRDFCarray = nanmean(surface.RadialDistanceAbovePhiLimitxy)
+
     elif metric == 'Rphi':
         a = ((phi[:])*(180/pi) >= 90)*(R)
         surface.RadialDistanceAbovePhi = a
@@ -208,10 +212,10 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.RadialDistanceAbovePhi[:,0]
         palette_string = 'brbg'
         max_range = 100
-    elif metric == 'Rphinan' and hasattr(surface, 'RadialDistanceAbovePhinan'):
+    elif metric == 'rpg' and hasattr(surface, 'RadialDistanceAbovePhiLimitxy'):
         palette = None
         color_range = 'full'
-        measurement = surface.RadialDistanceAbovePhinan[:,0]
+        measurement = surface.RadialDistanceAbovePhiLimitxy[:,0]
         palette_string = 'brbg'
         max_range = 100
     elif metric == 'theta' and hasattr(surface, 'theta'):
@@ -308,7 +312,6 @@ def scale_range(color_range=(0,30), channel=None):
     return color_range
 
 
-
 measure_distance_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_surface', SurfacesArg),
@@ -364,7 +367,7 @@ recolor_composites_desc = CmdDesc(
 measure_topology_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_cell', SurfacesArg),
-             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'Rphinan'])),
+             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg'])),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
