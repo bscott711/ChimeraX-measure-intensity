@@ -15,7 +15,7 @@ from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
                    ravel_multi_index, swapaxes)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
-from numpy import arccos, arctan, split, sqrt, subtract, sign, mean
+from numpy import arccos, arctan, split, sqrt, subtract, sign, mean, pi, zeros, size, nan, shape
 from scipy.spatial import KDTree
 
 
@@ -83,6 +83,18 @@ def measure_topology(surface, to_cell, metric):
     
     if metric == 'R':
         surface.RadialDistance= R
+    elif metric == 'Rphinan':
+        a = array((phi[:])*(180/pi))
+        b= zeros(shape(a))
+        for i in range(size(a)):
+            if a[i] >= 90:
+                b[i]= phi[i]
+            else:
+                b[i]= nan
+        surface.RadialDistanceAbovePhinan = (R * (b))
+    elif metric == 'Rphi':
+        a = ((phi[:])*(180/pi) >= 90)*(R)
+        surface.RadialDistanceAbovePhi = a
     elif metric == 'theta':
         surface.theta= theta
     elif metric == 'phi':
@@ -188,6 +200,18 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         palette = None
         color_range = 'full'
         measurement = surface.RadialDistance[:,0]
+        palette_string = 'brbg'
+        max_range = 100
+    elif metric == 'Rphi' and hasattr(surface, 'RadialDistanceAbovePhi'):
+        palette = None
+        color_range = 'full'
+        measurement = surface.RadialDistanceAbovePhi[:,0]
+        palette_string = 'brbg'
+        max_range = 100
+    elif metric == 'Rphinan' and hasattr(surface, 'RadialDistanceAbovePhinan'):
+        palette = None
+        color_range = 'full'
+        measurement = surface.RadialDistanceAbovePhinan[:,0]
         palette_string = 'brbg'
         max_range = 100
     elif metric == 'theta' and hasattr(surface, 'theta'):
@@ -340,7 +364,7 @@ recolor_composites_desc = CmdDesc(
 measure_topology_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_cell', SurfacesArg),
-             ('metric', EnumOf(['R', 'theta', 'phi'])),
+             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'Rphinan'])),
              ('palette', ColormapArg),
              ('range', ColormapRangeArg),
              ('key', BoolArg)],
