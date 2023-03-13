@@ -49,6 +49,9 @@ class _MyAPI(BundleAPI):
         elif ci.name == "surface composite":
             func = measure_commands.recolor_composites
             desc = measure_commands.recolor_composites_desc
+        elif ci.name == "measure topology":
+            func = measure_commands.topology_series
+            desc = measure_commands.measure_topology_desc
         else:
             raise ValueError(
                 f'Trying to register unknown command: {ci.name}')

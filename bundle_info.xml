@@ -6,7 +6,7 @@ will be displayed without the ChimeraX- prefix.
 -->
 
 <BundleInfo name="ChimeraX-Measure-Intensity"
-	    version="0.4.4" package="chimerax.measure-intensity"
+	    version="0.5.0" package="chimerax.measure-intensity"
   	    minSessionVersion="1" maxSessionVersion="1">
 
   <!-- Additional information about bundle source -->
@@ -38,6 +38,7 @@ will be displayed without the ChimeraX- prefix.
     <ChimeraXClassifier>ChimeraX :: Command :: measure distance :: Volume Data ::	Color surface based on local distance between another surface</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: measure intensity :: Volume Data :: Color surface based on local intensity</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: measure composite :: Volume Data :: Color surface based on local intensities as composite</ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Command :: measure topology :: Volume Data :: Color surface based on distance to centroid</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: surface recolor :: Volume Data :: Recolor surface based on previous measurement</ChimeraXClassifier>
     <ChimeraXClassifier>ChimeraX :: Command :: surface composite :: Volume Data :: Recolor surface as composite based on previous measurements</ChimeraXClassifier>
   </Classifiers>
