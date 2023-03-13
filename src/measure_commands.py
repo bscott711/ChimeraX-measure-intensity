@@ -11,12 +11,11 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from numpy import (array, full, inf, isnan, nanmax, nanmean, nanmin,
-                   ravel_multi_index, swapaxes)
+from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
+                   nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
+                   swapaxes)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
-from numpy import arccos, arctan, split, sqrt, subtract, sign, mean, pi, zeros, size, nan, shape
-from matplotlib import pyplot
 from scipy.spatial import KDTree
 
 
@@ -40,11 +39,13 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
         for surface, green_map, magenta_map in zip(surface, green_map, magenta_map)]
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
-def topology_series(session, surface, to_cell, metric= None, palette='magenta', color_range= None, key=False):
+
+def topology_series(session, surface, to_cell, radius= 8, metric='R', palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
-    [measure_topology(surface, to_cell, metric)
+    [measure_topology(surface, to_cell, radius)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
+
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -65,44 +66,38 @@ def measure_distance(surface, to_surface, knn):
     distance, _ = query_tree(surface.vertices, to_surface.vertices, knn=knn)
     surface.distance = distance
 
-def measure_topology(surface, to_cell, metric):
-    "this is ment to output a color mapped for topology metrics (phi, theta and distance (R) from the target centroid) YML author"
+
+def measure_topology(surface, to_cell, radius=8):
+    """This is meant to output a color mapped for topology metrics"""
     centroid = mean(to_cell.vertices, axis=0)
-    x_coord, y_coord, z_coord = split(subtract(centroid, surface.vertices), 3, 1)
+    x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
+
+    x_coord = x_coord.flatten()
+    y_coord = y_coord.flatten()
+    z_coord = z_coord.flatten()
 
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
     x_squared = x_coord ** 2
 
-    R = sqrt(z_squared + y_squared + x_squared)
-
+    distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
-
     theta = sign(y_coord)*arccos(x_coord / distxy)
-
-    phi = arccos(z_coord / R)
+    phi = arccos(z_coord / distance)
     
-    if metric == 'R':
-        surface.RadialDistance= R
-    elif metric == 'rpg':
-        a = array((phi[:])*(180/pi))
-        b = array((distxy[:])*0.1208)
-        c = zeros( shape(a) )
-        for i in range(size(a)):
-            if a[i] >= 90 and b[i] <= 8:
-                c[i]= phi[i]
-            else:
-                c[i]= nan
-        surface.RadialDistanceAbovePhiLimitxy = (R * (c))
-        surface.IRDFCarray = nanmean(surface.RadialDistanceAbovePhiLimitxy)
+    abovePhi = phi <= (pi/2)
+    radialClose = distance * 0.1208 < radius
+    radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
+    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance
+    radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
 
-    elif metric == 'Rphi':
-        a = ((phi[:])*(180/pi) >= 90)*(R)
-        surface.RadialDistanceAbovePhi = a
-    elif metric == 'theta':
-        surface.theta= theta
-    elif metric == 'phi':
-        surface.phi= phi
+    surface.radialDistanceAbovePhi= abovePhi*distance
+    surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
+    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
+    
+    surface.radialDistance = distance
+    surface.theta = theta
+    surface.phi = phi
 
 
 def measure_intensity(surface, to_map, radius):
@@ -200,36 +195,31 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.intensity
         palette_string = 'purples'
         max_range = 5
-    elif metric == 'R' and hasattr(surface, 'RadialDistance'):
-        palette = None
-        color_range = 'full'
-        measurement = surface.RadialDistance[:,0]
-        palette_string = 'brbg'
+    elif metric == 'R' and hasattr(surface, 'radialDistance'):
+        measurement = surface.radialDistance
+        palette_string = 'purples'
         max_range = 100
-    elif metric == 'Rphi' and hasattr(surface, 'RadialDistanceAbovePhi'):
-        palette = None
-        color_range = 'full'
-        measurement = surface.RadialDistanceAbovePhi[:,0]
-        palette_string = 'brbg'
+    elif metric == 'Rphi' and hasattr(surface, 'radialDistanceAbovePhi'):
+        measurement = surface.radialDistanceAbovePhi
+        palette_string = 'purples'
         max_range = 100
-    elif metric == 'rpg' and hasattr(surface, 'RadialDistanceAbovePhiLimitxy'):
-        palette = None
-        color_range = 'full'
-        measurement = surface.RadialDistanceAbovePhiLimitxy[:,0]
+    elif metric == 'rpg' and hasattr(surface, 'radialDistanceAbovePhiLimitxy'):
+        measurement = surface.radialDistanceAbovePhiLimitxy
+        palette_string = 'purples'
+        max_range = 100
+    elif metric == 'rpd' and hasattr(surface, 'radialDistanceAbovePhiNoNans'):
+        measurement = surface.radialDistanceAbovePhiNoNans
         palette_string = 'purples'
         max_range = 100
     elif metric == 'theta' and hasattr(surface, 'theta'):
-        palette = None
-        color_range = 'full'
-        measurement = surface.theta[:,0]
+        measurement = surface.theta
         palette_string = 'brbg'
-        max_range = 15
+        if color_range is None:
+            color_range = -pi,pi
     elif metric == 'phi' and hasattr(surface, 'phi'):
-        palette = None
-        color_range = 'full'
-        measurement = surface.phi[:,0]
+        measurement = surface.phi
         palette_string = 'brbg'
-        max_range = 15
+        max_range = pi
     else:
         return
 
@@ -317,7 +307,7 @@ measure_distance_desc = CmdDesc(
     keyword=[('to_surface', SurfacesArg),
              ('knn', Bounded(IntArg)),
              ('palette', ColormapArg),
-             ('range', ColormapRangeArg),
+             ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
     required_arguments=['to_surface'],
     synopsis='Measure local distance between two surfaces')
@@ -328,7 +318,7 @@ measure_intensity_desc = CmdDesc(
     keyword=[('to_map', SurfacesArg),
              ('radius', Bounded(IntArg, 1, 30)),
              ('palette', ColormapArg),
-             ('range', ColormapRangeArg),
+             ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
     required_arguments=['to_map'],
     synopsis='Measure local intensity relative to surface')
@@ -347,9 +337,9 @@ measure_composite_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('metric', EnumOf(['intensity', 'distance'])),
+    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
              ('palette', ColormapArg),
-             ('range', ColormapRangeArg),
+             ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
     required_arguments=[],
     synopsis='Recolor surface based on previous measurement')
@@ -367,9 +357,10 @@ recolor_composites_desc = CmdDesc(
 measure_topology_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_cell', SurfacesArg),
-             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg'])),
+             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
              ('palette', ColormapArg),
-             ('range', ColormapRangeArg),
+             ('radius', Bounded(IntArg)),
+             ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
-    synopsis='Measure local distance between two surfaces yml')
+    synopsis='Measure local distance between surface and centroid in spherical coordinates')
