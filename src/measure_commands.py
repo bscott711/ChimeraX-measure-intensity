@@ -13,7 +13,7 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
 from chimerax.core.commands.cli import EnumOf
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes)
+                   swapaxes, savetxt, column_stack)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -99,6 +99,13 @@ def measure_topology(surface, to_cell, radius=8):
     surface.theta = theta
     surface.phi = phi
 
+    dist = nanmean(surface.radialDistance) 
+    distancephi = nanmean(surface.radialDistanceAbovePhi)
+    distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
+    with open('test_Topology_dist_distphi_distphixy.txt', 'ab') as f:
+        savetxt(f, column_stack([dist,distancephi,distancephixy]), header=f"dist distphi distphixy", comments='')
+    with open('test_Topology_nan.txt', 'ab') as f:
+        savetxt(f, [surface.IRDFCarray])
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
