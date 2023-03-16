@@ -102,10 +102,9 @@ def measure_topology(surface, to_cell, radius=8):
     dist = nanmean(surface.radialDistance) 
     distancephi = nanmean(surface.radialDistanceAbovePhi)
     distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
-    with open('test_Topology_dist_distphi_distphixy.txt', 'ab') as f:
-        savetxt(f, column_stack([dist,distancephi,distancephixy]), header=f"dist distphi distphixy", comments='')
-    with open('test_Topology_nan.txt', 'ab') as f:
-        savetxt(f, [surface.IRDFCarray])
+    with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
+        savetxt(f, column_stack([dist,distancephi,distancephixy, surface.IRDFCarray]), header=f"dist distphi distphixy", comments='')
+
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
