@@ -13,7 +13,7 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
 from chimerax.core.commands.cli import EnumOf
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack)
+                   swapaxes, savetxt, column_stack,nansum)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -94,7 +94,8 @@ def measure_topology(surface, to_cell, radius=8):
     surface.radialDistanceAbovePhi= abovePhi*distance
     surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
     surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
-    
+    surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
+
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
@@ -103,9 +104,8 @@ def measure_topology(surface, to_cell, radius=8):
     distancephi = nanmean(surface.radialDistanceAbovePhi)
     distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
-        savetxt(f, column_stack([dist,distancephi,distancephixy, surface.IRDFCarray]), header=f"dist distphi distphixy", comments='')
-
-
+        savetxt(f, column_stack([dist, distancephi, distancephixy, surface.IRDFCarray, surface.Sum]), header=f"dist distphi distphixy nans sum", comments='')
+    
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
