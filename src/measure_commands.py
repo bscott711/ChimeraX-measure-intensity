@@ -13,7 +13,7 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
 from chimerax.core.commands.cli import EnumOf
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack,nansum)
+                   swapaxes, savetxt, column_stack,nansum, count_nonzero)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -71,26 +71,43 @@ def measure_topology(surface, to_cell, radius=8):
     """This is meant to output a color mapped for topology metrics"""
     centroid = mean(to_cell.vertices, axis=0)
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
+    x_coordRBC, y_coordRBC, z_coordRBC = split(subtract(to_cell.vertices, centroid),3,1)
 
     x_coord = x_coord.flatten()
     y_coord = y_coord.flatten()
     z_coord = z_coord.flatten()
+    x_coordRBC = x_coordRBC.flatten()
+    y_coordRBC = y_coordRBC.flatten()
+    z_coordRBC = z_coordRBC.flatten()
 
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
     x_squared = x_coord ** 2
+    z_squaredRBC = z_coordRBC ** 2
+    y_squaredRBC = y_coordRBC ** 2
+    x_squaredRBC = x_coordRBC ** 2
 
+    distanceRBC = sqrt(z_squaredRBC + y_squaredRBC + x_squaredRBC)
     distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance)
-    
+    phiRBC = arccos(z_coordRBC / distanceRBC)
+
+    abovePhiRBC = phiRBC <= (pi/2)
     abovePhi = phi <= (pi/2)
     radialClose = distance * 0.1208 < radius
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
     surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
 
+    verticesRBC = distanceRBC * abovePhiRBC
+    vertices = surface.radialDistanceAbovePhiNoNans
+    num_verticesRBC = count_nonzero(verticesRBC)
+    num_verticesRBCarea = num_verticesRBC * 0.016384
+    num_vertices = count_nonzero(vertices)
+    surface.area = num_vertices * 0.016384
+    surface.ra = surface.area/num_verticesRBCarea
     surface.radialDistanceAbovePhi= abovePhi*distance
     surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
     surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
@@ -104,7 +121,7 @@ def measure_topology(surface, to_cell, radius=8):
     distancephi = nanmean(surface.radialDistanceAbovePhi)
     distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
-        savetxt(f, column_stack([dist, distancephi, distancephixy, surface.IRDFCarray, surface.Sum]), header=f"dist distphi distphixy nans sum", comments='')
+        savetxt(f, column_stack([dist, distancephi, distancephixy, surface.IRDFCarray, surface.Sum, surface.area, surface.ra]), header=f"dist distphi distphixy nans sum area RA", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
