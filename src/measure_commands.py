@@ -11,7 +11,7 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from chimerax.surface import surface_area
+from chimerax.surface import (surface_area, vertex_convexity)
 from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
