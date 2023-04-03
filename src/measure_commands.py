@@ -15,7 +15,7 @@ from chimerax.surface import (surface_area, vertex_convexity)
 from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack,nansum, count_nonzero)
+                   swapaxes, savetxt, column_stack,nansum)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -102,12 +102,9 @@ def measure_topology(session,surface, to_cell, radius=8):
     surface.theta = theta
     surface.phi = phi
 
-    dist = nanmean(surface.radialDistance) 
-    distancephi = nanmean(surface.radialDistanceAbovePhi)
-    distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
     surface.AxialRoughness = sqrt(mean(abs(surface.radialDistanceAbovePhiNoNans))**2)/(2*pi*2.25**2)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.AxialRoughness]), header=f"dist distphi distphixy nans sum", comments='')
+        savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Roughness", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
