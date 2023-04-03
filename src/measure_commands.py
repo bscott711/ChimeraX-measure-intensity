@@ -44,7 +44,7 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
 
 def topology_series(session, surface, to_cell, radius= 8, metric='R', palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
-    [measure_topology(surface, to_cell, radius)
+    [measure_topology(session, surface, to_cell, radius)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -69,7 +69,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(surface, to_cell, radius=8):
+def measure_topology(session,surface, to_cell, radius=8):
     """This is meant to output a color mapped for topology metrics"""
     centroid = mean(to_cell.vertices, axis=0)
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
@@ -88,7 +88,7 @@ def measure_topology(surface, to_cell, radius=8):
     phi = arccos(z_coord / distance)
 
     abovePhi = phi <= (pi/2)
-    radialClose = distance * (0.1208 < radius)
+    radialClose = (distance*.1208)  < radius
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
     surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
@@ -105,8 +105,9 @@ def measure_topology(surface, to_cell, radius=8):
     dist = nanmean(surface.radialDistance) 
     distancephi = nanmean(surface.radialDistanceAbovePhi)
     distancephixy = nanmean(surface.radialDistanceAbovePhiNoNans)
+    surface.AxialRoughness = sqrt(mean(abs(surface.radialDistanceAbovePhiNoNans))**2)/(2*pi*2.25**2)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
-        savetxt(f, column_stack([dist, distancephi, distancephixy, surface.IRDFCarray, surface.Sum]), header=f"dist distphi distphixy nans sum", comments='')
+        savetxt(f, column_stack([surface.AxialRoughness]), header=f"dist distphi distphixy nans sum", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
