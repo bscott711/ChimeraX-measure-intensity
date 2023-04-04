@@ -42,9 +42,10 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='R', palette=None, color_range= None, key=False):
+def topology_series(session, surface, to_cell, radius= 8, target_r=2.25, metric='RPD', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
-    [measure_topology(session, surface, to_cell, radius)
+    volume(session, voxel_size= size)
+    [measure_topology(session, surface, to_cell, radius, target_r)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -69,8 +70,9 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session,surface, to_cell, radius=8):
+def measure_topology(session,surface, to_cell, radius=8, target_r=2.25):
     """This is meant to output a color mapped for topology metrics"""
+    
     centroid = mean(to_cell.vertices, axis=0)
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
 
@@ -88,9 +90,9 @@ def measure_topology(session,surface, to_cell, radius=8):
     phi = arccos(z_coord / distance)
 
     abovePhi = phi <= (pi/2)
-    radialClose = (distance*.1208)  < radius
+    radialClose = (distance  < radius) & (distance > target_r)
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
-    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance
+    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance 
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
 
     surface.radialDistanceAbovePhi= abovePhi* distance
@@ -102,7 +104,7 @@ def measure_topology(session,surface, to_cell, radius=8):
     surface.theta = theta
     surface.phi = phi
 
-    surface.AxialRoughness = sqrt(mean(abs(surface.radialDistanceAbovePhiNoNans))**2)/(2*pi*2.25**2)
+    surface.AxialRoughness = sqrt(nanmean(abs(surface.radialDistanceAbovePhiLimitxy))**2)/(2*pi*target_r**2)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
         savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Roughness", comments='')
     
@@ -366,7 +368,9 @@ measure_topology_desc = CmdDesc(
              ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
              ('palette', ColormapArg),
              ('radius', Bounded(IntArg)),
+             ('target_r', Bounded(IntArg)),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
-    synopsis='Measure local distance between surface and centroid in spherical coordinates')
+    synopsis='This measure function will output calculated axial surface roughness values (S_q)'
+        'based on inputs surface-Macrophage, tocell- target, radius- search radius (um), targetr- target radius (um)')
