@@ -111,7 +111,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC'):
     surface.theta = theta
     surface.phi = phi
 
-    surface.AxialRoughness = sqrt(nansum(abs(surface.radialDistanceAbovePhiLimitxy))**2)/(2*pi*target_r**2)
+    surface.AxialRoughness = sqrt((surface.Sum)**2)/(2*pi*target_r**2)
     with open('Axial Surface Roughness.csv', 'ab') as f:
         savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Surface Roughness S_q", comments='')
     
