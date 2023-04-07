@@ -42,10 +42,10 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, target_r=2.25, metric='RPD', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
+def topology_series(session, surface, to_cell, radius= 8, metric='RPD', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
-    [measure_topology(session, surface, to_cell, radius, target_r)
+    [measure_topology(session, surface, to_cell, radius)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -70,7 +70,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session,surface, to_cell, radius=8, target_r=2.25):
+def measure_topology(session, surface, to_cell, radius=8):
     """This is meant to output a color mapped for topology metrics"""
     
     centroid = mean(to_cell.vertices, axis=0)
@@ -90,7 +90,7 @@ def measure_topology(session,surface, to_cell, radius=8, target_r=2.25):
     phi = arccos(z_coord / distance)
 
     abovePhi = phi <= (pi/2)
-    radialClose = (distance  < radius) & (distance > target_r)
+    radialClose = (distance  < radius) & (distance > 2.25)
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
     surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance 
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
@@ -104,7 +104,7 @@ def measure_topology(session,surface, to_cell, radius=8, target_r=2.25):
     surface.theta = theta
     surface.phi = phi
 
-    surface.AxialRoughness = sqrt(nanmean(abs(surface.radialDistanceAbovePhiLimitxy))**2)/(2*pi*target_r**2)
+    surface.AxialRoughness = sqrt(nanmean(abs(surface.radialDistanceAbovePhiLimitxy))**2)/(2*pi*2.25**2)
     with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
         savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Roughness", comments='')
     
