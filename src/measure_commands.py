@@ -112,8 +112,8 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC'):
     surface.phi = phi
 
     surface.AxialRoughness = sqrt(nansum(abs(surface.radialDistanceAbovePhiLimitxy))**2)/(2*pi*target_r**2)
-    with open('test_Topology_dist_distphi_distphixy_IRDFC.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Roughness", comments='')
+    with open('Axial Surface Roughness.csv', 'ab') as f:
+        savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Surface Roughness S_q", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
