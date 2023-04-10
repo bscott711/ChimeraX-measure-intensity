@@ -15,7 +15,7 @@ from chimerax.surface import (surface_area, vertex_convexity)
 from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack,nansum)
+                   swapaxes, savetxt, column_stack,nansum,nanstd)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -111,9 +111,10 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC'):
     surface.theta = theta
     surface.phi = phi
 
-    surface.AxialRoughness = sqrt((surface.Sum)**2)/(2*pi*target_r**2)
-    with open('Axial Surface Roughness.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.AxialRoughness]), header=f"Axial Surface Roughness S_q", comments='')
+    surface.AxialRoughness = sqrt(surface.Sum**2/(2*pi*target_r**2))
+    surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
+    with open('Areal Surface Roughness.csv', 'ab') as f:
+        savetxt(f, column_stack([surface.AxialRoughness, surface.ArealRoughness_STD]), header=f"Areal Surface Roughness S_q STD_Areal Rougheness", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
@@ -217,15 +218,15 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
     elif metric == 'Rphi' and hasattr(surface, 'radialDistanceAbovePhi'):
         measurement = surface.radialDistanceAbovePhi
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'rpg' and hasattr(surface, 'radialDistanceAbovePhiLimitxy'):
         measurement = surface.radialDistanceAbovePhiLimitxy
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'rpd' and hasattr(surface, 'radialDistanceAbovePhiNoNans'):
         measurement = surface.radialDistanceAbovePhiNoNans
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'theta' and hasattr(surface, 'theta'):
         measurement = surface.theta
         palette_string = 'brbg'
