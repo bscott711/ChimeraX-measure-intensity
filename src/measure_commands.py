@@ -15,7 +15,7 @@ from chimerax.surface import (surface_area, vertex_convexity)
 from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack,nansum,nanstd)
+                   swapaxes, savetxt, column_stack,nansum, count_nonzero, nanstd)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -45,7 +45,7 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
 def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target ='sRBC', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
-    [measure_topology(session, surface, to_cell, radius, target)
+    [measure_topology(session, surface, to_cell, radius, target, size)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -70,7 +70,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC'):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1208,0.1208,0.1208]):
     """This is meant to output a color mapped for topology metrics"""
     if target == 'sRBC':
         target_r = 2.25
@@ -111,10 +111,11 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC'):
     surface.theta = theta
     surface.phi = phi
 
-    surface.AxialRoughness = sqrt(surface.Sum**2/(2*pi*target_r**2))
+    surface.area = (0.1208**2) * count_nonzero(surface.radialDistanceAbovePhiNoNans)
+    surface.AxialRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     with open('Areal Surface Roughness.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.AxialRoughness, surface.ArealRoughness_STD]), header=f"Areal Surface Roughness S_q STD_Areal Rougheness", comments='')
+        savetxt(f, column_stack([surface.AxialRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness Surface-Area", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
