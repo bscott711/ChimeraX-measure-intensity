@@ -7,6 +7,7 @@
 
 from chimerax.color_key import show_key
 from chimerax.core import colors
+from chimerax.std_commands.wait import wait
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg)
@@ -45,6 +46,7 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
 def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target ='sRBC', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
+    wait(session,frames=1)
     [measure_topology(session, surface, to_cell, radius, target, size)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
@@ -71,7 +73,13 @@ def measure_distance(surface, to_surface, knn):
 
 
 def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1208,0.1208,0.1208]):
-    """This is meant to output a color mapped for topology metrics"""
+    """This command is designed to output a csv file of the surface metrics:
+    areal surface roughness, areal surface roughness standard deviation and surface area per frame.
+    Additionally this command can color vertices based on their distance from the target centroid.
+    Author: Yoseph Loyd
+    Date:20230413"""
+    
+    """Tell the system what target you are computing the areal roughness of."""
     if target == 'sRBC':
         target_r = 2.25
     elif target =='mRBC':
@@ -80,40 +88,49 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
         return
     #Target not recognized
 
+    """Define the target centroid from mid range x,y and z coordinates."""
     centroid = mean(to_cell.vertices, axis=0)
+
+    """Vertice x,y and z distances from centroid"""
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
 
     x_coord = x_coord.flatten()
     y_coord = y_coord.flatten()
     z_coord = z_coord.flatten()
-
+    """Converting the cartisian system into spherical coordinates"""
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
     x_squared = x_coord ** 2
-
+    
     distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance)
 
+    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
     radialClose = (distance  < radius) & (distance > target_r)
+
+    """Outputs for coloring vertices as surface. arguments"""
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
     surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance 
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
 
     surface.radialDistanceAbovePhi= abovePhi* distance
     surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
-    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
-    surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
 
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
 
+    """Single value outputs for definning topology"""
+    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
+    surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
     surface.area = (0.1208**2) * count_nonzero(surface.radialDistanceAbovePhiNoNans)
     surface.AxialRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
+    
+    """"Text file output"""
     with open('Areal Surface Roughness.csv', 'ab') as f:
         savetxt(f, column_stack([surface.AxialRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness Surface-Area", comments='')
     
