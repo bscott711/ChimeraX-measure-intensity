@@ -140,7 +140,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
 
     '''Retaining all triangles of interest'''
     Bool_triangles = isin(surface.triangles, vertice_index)
-    -----
+    ------
     BoolT[BoolT ==0] = nan
     '''Converting the boolean triangles logic to modify triangles array'''
     nan_triangles[nan_triangles == 0 ] = nan
