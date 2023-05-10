@@ -123,53 +123,30 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.theta = theta
     surface.phi = phi
 
-    """reconstructin matrix of vetices"""
-    limits = surface.radialDistanceAbovePhiNoNans/distance
-    
+    """reconstructin matrix of bool vetices"""
+    limits = abovePhi * radialClose
     v_x = x_coord*limits
     v_y = y_coord*limits
     v_z = z_coord*limits
 
-    v_x[v_x !=0]
-    v_y[v_y !=0]
-    v_z[v_z !=0]
+    vertices=zeros(shape(surface.vertices))
 
-    vertices = [v_x, v_y, v_z]
+    vertices[:,0]=v_x
+    vertices[:,1]=v_y
+    vertices[:,2]=v_z
 
-    """Generating the triangle array"""
-    centroidt = mean(to_cell.triangles, axis=0)
-    x_coordt, y_coordt, z_coordt = split(subtract(surface.triangles, centroidt), 3, 1)
+    '''Identifying triangles by vertice index using numpy module'''
+    vertice_index = argwhere(limits)
 
-    x_coordt = x_coordt.flatten()
-    y_coordt = y_coordt.flatten()
-    z_coordt = z_coordt.flatten()
-
-    z_squaredt = z_coordt ** 2
-    y_squaredt = y_coordt ** 2
-    x_squaredt = x_coordt ** 2
-    
-    distancet = sqrt(z_squaredt + y_squaredt + x_squaredt)
-    phit = arccos(z_coordt / distancet)
-
-    abovePhit = phit <= (pi/2)
-    radialCloset = (distancet  < radius) & (distancet > target_r)
-
-    """Reconstructin triangle array"""
-    triangle_limits = abovePhit * radialCloset
-
-    t_x = x_coordt*triangle_limits
-    t_y = y_coordt*triangle_limits
-    t_z = z_coordt*triangle_limits
-
-    t_x[t_x !=0]
-    t_y[t_y !=0]
-    t_z[t_z !=0]
-
-    triangles = [t_x, t_y, t_z]
-
-    """Reshaping matrixes"""
-    vertices = transpose(vertices)
-    triangles = int_(transpose(triangles))
+    '''Retaining all triangles of interest'''
+    Bool_triangles = isin(surface.triangles, vertice_index)
+    -----
+    BoolT[BoolT ==0] = nan
+    '''Converting the boolean triangles logic to modify triangles array'''
+    nan_triangles[nan_triangles == 0 ] = nan
+    dataType = (surface.triangles).dtype
+    nan_value = min(nan_triangles.astype(str(dataType)))
+    tirangles = delete()
 
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
