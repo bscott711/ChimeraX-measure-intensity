@@ -16,7 +16,8 @@ from chimerax.surface import (surface_area)
 from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes, savetxt, column_stack,nansum, transpose, nanstd, int_)
+                   count_nonzero, swapaxes, savetxt, column_stack,nansum, isin,min,
+                   argwhere, zeros, shape, nanstd, int_)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -43,7 +44,7 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target ='sRBC', size=(.1208,.1208,.1208), palette=None, color_range= None, key=False):
+def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target ='sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
@@ -72,7 +73,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1208,0.1208,0.1208]):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028]):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
@@ -83,7 +84,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     if target == 'sRBC':
         target_r = 2.25
     elif target =='mRBC':
-        target_r = 3
+        target_r = 3.
     else:
         return
     #Target not recognized
@@ -123,7 +124,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.theta = theta
     surface.phi = phi
 
-    """reconstructin matrix of bool vetices"""
+    """ reconstructin matrix of bool vetices
     limits = abovePhi * radialClose
     v_x = x_coord*limits
     v_y = y_coord*limits
@@ -140,13 +141,15 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
 
     '''Retaining all triangles of interest'''
     Bool_triangles = isin(surface.triangles, vertice_index)
+    Bool_triangles = Bool_triangles.astype('int32')
+    Bool_triangles[Bool_triangles == 0]= nan
     ------
     BoolT[BoolT ==0] = nan
     '''Converting the boolean triangles logic to modify triangles array'''
     nan_triangles[nan_triangles == 0 ] = nan
     dataType = (surface.triangles).dtype
     nan_value = min(nan_triangles.astype(str(dataType)))
-    tirangles = delete()
+    tirangles = delete() """
 
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
@@ -155,15 +158,15 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     """Single value outputs for definning topology"""
     surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
     surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
-    surface.area = surface_area(vertices, triangles)
+    """ surface.area = surface_area(vertices, triangles) """
 
-    'surface.area = (0.1208**2) * count_nonzero(surface.radialDistanceAbovePhiNoNans)'
+    surface.area = count_nonzero(surface.radialDistanceAbovePhiNoNans)
     surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     
     """"Text file output"""
     with open('Areal Surface Roughness.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness Surface-Area", comments='')
+        savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
     
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
