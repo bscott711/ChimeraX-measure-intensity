@@ -44,11 +44,11 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target ='sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False):
+def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
-    [measure_topology(session, surface, to_cell, radius, target, size)
+    [measure_topology(session, surface, to_cell, radius, target, size, output)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -73,7 +73,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028]):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= False):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
@@ -165,9 +165,13 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     
     """"Text file output"""
-    with open('Areal Surface Roughness.csv', 'ab') as f:
-        savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
+    if output == True:
+        with open('Areal Surface Roughness.csv', 'ab') as f:
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
+    else:
+        return
     
+
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
@@ -430,6 +434,7 @@ measure_topology_desc = CmdDesc(
              ('radius', Bounded(IntArg)),
              ('target', EnumOf(['sRBC', 'mRBC'])),
              ('color_range', ColormapRangeArg),
+             ('output', BoolArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
     synopsis='This measure function will output calculated axial surface roughness values (S_q)'
