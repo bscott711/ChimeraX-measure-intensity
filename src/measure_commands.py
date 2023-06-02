@@ -10,10 +10,12 @@ from chimerax.core import colors
 from chimerax.std_commands.wait import wait
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
-                                    SurfacesArg)
+                                    SurfacesArg, StringArg)
 from chimerax.core.commands.cli import EnumOf
-from chimerax.surface import (surface_area)
+"""from chimerax.surface import (surface_area)"""
 from chimerax.map.volumecommand import volume
+from chimerax.std_commands.cd import (cd)
+from os.path import exists
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, isin,min,
@@ -44,7 +46,7 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = False):
+def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = 'None'):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
@@ -73,7 +75,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= False):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= 'None'):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
@@ -84,7 +86,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     if target == 'sRBC':
         target_r = 2.25
     elif target =='mRBC':
-        target_r = 3.
+        target_r = 3
     else:
         return
     #Target not recognized
@@ -165,7 +167,9 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     
     """"Text file output"""
-    if output == True:
+    path = exists(output)
+    if path == True:
+        cd(session,str(output))
         with open('Areal Surface Roughness.csv', 'ab') as f:
             savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
     else:
@@ -434,7 +438,7 @@ measure_topology_desc = CmdDesc(
              ('radius', Bounded(IntArg)),
              ('target', EnumOf(['sRBC', 'mRBC'])),
              ('color_range', ColormapRangeArg),
-             ('output', BoolArg),
+             ('output', StringArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
     synopsis='This measure function will output calculated axial surface roughness values (S_q)'
