@@ -7,13 +7,17 @@
 
 from chimerax.color_key import show_key
 from chimerax.core import colors
+from chimerax.std_commands.wait import wait
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
+from chimerax.surface import (surface_area)
+from chimerax.map.volumecommand import volume
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   swapaxes)
+                   count_nonzero, swapaxes, savetxt, column_stack,nansum, isin,min,
+                   argwhere, zeros, shape, nanstd, int_)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -40,9 +44,11 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='R', palette=None, color_range= None, key=False):
+def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = False):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
-    [measure_topology(surface, to_cell, radius)
+    volume(session, voxel_size= size)
+    wait(session,frames=1)
+    [measure_topology(session, surface, to_cell, radius, target, size, output)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -67,38 +73,104 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(surface, to_cell, radius=8):
-    """This is meant to output a color mapped for topology metrics"""
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= False):
+    """This command is designed to output a csv file of the surface metrics:
+    areal surface roughness, areal surface roughness standard deviation and surface area per frame.
+    Additionally this command can color vertices based on their distance from the target centroid.
+    Author: Yoseph Loyd
+    Date:20230413"""
+    
+    """Tell the system what target you are computing the areal roughness of."""
+    if target == 'sRBC':
+        target_r = 2.25
+    elif target =='mRBC':
+        target_r = 3.
+    else:
+        return
+    #Target not recognized
+
+    """Define the target centroid from mid range x,y and z coordinates."""
     centroid = mean(to_cell.vertices, axis=0)
+
+    """Vertice x,y and z distances from centroid"""
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
 
     x_coord = x_coord.flatten()
     y_coord = y_coord.flatten()
     z_coord = z_coord.flatten()
-
+    """Converting the cartisian system into spherical coordinates"""
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
     x_squared = x_coord ** 2
-
+    
     distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance)
-    
+
+    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
-    radialClose = distance * 0.1208 < radius
+    radialClose = (distance  < radius) & (distance > target_r)
+
+    """Outputs for coloring vertices as surface. arguments"""
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
-    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance
+    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance 
     radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
 
-    surface.radialDistanceAbovePhi= abovePhi*distance
+    surface.radialDistanceAbovePhi= abovePhi* distance
     surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
-    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
-    
+
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
 
+    """ reconstructin matrix of bool vetices
+    limits = abovePhi * radialClose
+    v_x = x_coord*limits
+    v_y = y_coord*limits
+    v_z = z_coord*limits
+
+    vertices=zeros(shape(surface.vertices))
+
+    vertices[:,0]=v_x
+    vertices[:,1]=v_y
+    vertices[:,2]=v_z
+
+    '''Identifying triangles by vertice index using numpy module'''
+    vertice_index = argwhere(limits)
+
+    '''Retaining all triangles of interest'''
+    Bool_triangles = isin(surface.triangles, vertice_index)
+    Bool_triangles = Bool_triangles.astype('int32')
+    Bool_triangles[Bool_triangles == 0]= nan
+    ------
+    BoolT[BoolT ==0] = nan
+    '''Converting the boolean triangles logic to modify triangles array'''
+    nan_triangles[nan_triangles == 0 ] = nan
+    dataType = (surface.triangles).dtype
+    nan_value = min(nan_triangles.astype(str(dataType)))
+    tirangles = delete() """
+
+    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
+    abovePhi = phi <= (pi/2)
+    radialClose = (distance  < radius) & (distance > target_r)
+
+    """Single value outputs for definning topology"""
+    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
+    surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
+    """ surface.area = surface_area(vertices, triangles) """
+
+    surface.area = count_nonzero(surface.radialDistanceAbovePhiNoNans)
+    surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
+    surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
+    
+    """"Text file output"""
+    if output == True:
+        with open('Areal Surface Roughness.csv', 'ab') as f:
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
+    else:
+        return
+    
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
@@ -202,15 +274,15 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
     elif metric == 'Rphi' and hasattr(surface, 'radialDistanceAbovePhi'):
         measurement = surface.radialDistanceAbovePhi
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'rpg' and hasattr(surface, 'radialDistanceAbovePhiLimitxy'):
         measurement = surface.radialDistanceAbovePhiLimitxy
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'rpd' and hasattr(surface, 'radialDistanceAbovePhiNoNans'):
         measurement = surface.radialDistanceAbovePhiNoNans
         palette_string = 'purples'
-        max_range = 100
+        max_range = 10
     elif metric == 'theta' and hasattr(surface, 'theta'):
         measurement = surface.theta
         palette_string = 'brbg'
@@ -360,7 +432,10 @@ measure_topology_desc = CmdDesc(
              ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
              ('palette', ColormapArg),
              ('radius', Bounded(IntArg)),
+             ('target', EnumOf(['sRBC', 'mRBC'])),
              ('color_range', ColormapRangeArg),
+             ('output', BoolArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
-    synopsis='Measure local distance between surface and centroid in spherical coordinates')
+    synopsis='This measure function will output calculated axial surface roughness values (S_q)'
+        'based on inputs surface-Macrophage, tocell- target, radius- search radius (um), targetr- target radius (um)')
