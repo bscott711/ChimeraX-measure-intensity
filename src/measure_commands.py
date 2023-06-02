@@ -4,20 +4,20 @@
 #pylint: disable=line-too-long
 #pylint: disable=unused-argument
 #pylint: disable=too-many-arguments
+#pylint: disable=unbalanced-tuple-unpacking
 
 from chimerax.color_key import show_key
 from chimerax.core import colors
-from chimerax.std_commands.wait import wait
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg)
 from chimerax.core.commands.cli import EnumOf
-from chimerax.surface import (surface_area)
 from chimerax.map.volumecommand import volume
-from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
-                   nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   count_nonzero, swapaxes, savetxt, column_stack,nansum, isin,min,
-                   argwhere, zeros, shape, nanstd, int_)
+from chimerax.std_commands.wait import wait
+from numpy import (arccos, array, column_stack, count_nonzero, full, inf,
+                   isnan, mean, nan, nanmax, nanmean, nanmin, nanstd, nansum,
+                   pi, ravel_multi_index, savetxt, sign, split, sqrt, subtract,
+                   swapaxes)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure)
 from scipy.spatial import KDTree
@@ -45,10 +45,10 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
 
 
 def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = False):
-    """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
+    """this is meant to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
-    [measure_topology(session, surface, to_cell, radius, target, size, output)
+    [measure_topology(surface, to_cell, radius, target, output)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface, metric, palette, color_range, key)
 
@@ -73,14 +73,14 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= False):
+def measure_topology(surface, to_cell, radius=8, target='sRBC', output= False):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
     Author: Yoseph Loyd
     Date:20230413"""
-    
-    """Tell the system what target you are computing the areal roughness of."""
+
+    #Tell the system what target you are computing the areal roughness of.
     if target == 'sRBC':
         target_r = 2.25
     elif target =='mRBC':
@@ -89,88 +89,90 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
         return
     #Target not recognized
 
-    """Define the target centroid from mid range x,y and z coordinates."""
+    #Define the target centroid from mid range x,y and z coordinates.
     centroid = mean(to_cell.vertices, axis=0)
 
-    """Vertice x,y and z distances from centroid"""
-    x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
+    #Vertice x,y and z distances from centroid
+    x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid),3,1)
 
     x_coord = x_coord.flatten()
     y_coord = y_coord.flatten()
     z_coord = z_coord.flatten()
-    """Converting the cartisian system into spherical coordinates"""
+    #Converting the cartisian system into spherical coordinates
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
     x_squared = x_coord ** 2
-    
+
     distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance)
 
-    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
-    abovePhi = phi <= (pi/2)
-    radialClose = (distance  < radius) & (distance > target_r)
+    #Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere
+    above_phi = phi <= (pi/2)
+    radial_close = (distance  < radius) & (distance > target_r)
 
-    """Outputs for coloring vertices as surface. arguments"""
-    radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
-    surface.radialDistanceAbovePhiNoNans= abovePhi * radialClose * distance 
-    radialDistanceAbovePhiLimitxy[radialDistanceAbovePhiLimitxy == 0] = nan
+    #Outputs for coloring vertices as surface. arguments
+    radial_distance_above_phi_limitxy = above_phi * radial_close * distance
+    surface.radialDistanceAbovePhiNoNans= above_phi * radial_close * distance
+    radial_distance_above_phi_limitxy[radial_distance_above_phi_limitxy == 0] = nan
 
-    surface.radialDistanceAbovePhi= abovePhi* distance
-    surface.radialDistanceAbovePhiLimitxy=radialDistanceAbovePhiLimitxy
+    surface.radialDistanceAbovePhi= above_phi* distance
+    surface.radialDistanceAbovePhiLimitxy=radial_distance_above_phi_limitxy
 
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
 
-    """ reconstructin matrix of bool vetices
-    limits = abovePhi * radialClose
-    v_x = x_coord*limits
-    v_y = y_coord*limits
-    v_z = z_coord*limits
+####
+    # #reconstructin matrix of bool vetices
+    # limits = abovePhi * radialClose
+    # v_x = x_coord*limits
+    # v_y = y_coord*limits
+    # v_z = z_coord*limits
 
-    vertices=zeros(shape(surface.vertices))
+    # vertices=zeros(shape(surface.vertices))
 
-    vertices[:,0]=v_x
-    vertices[:,1]=v_y
-    vertices[:,2]=v_z
+    # vertices[:,0]=v_x
+    # vertices[:,1]=v_y
+    # vertices[:,2]=v_z
 
-    '''Identifying triangles by vertice index using numpy module'''
-    vertice_index = argwhere(limits)
+    # '''Identifying triangles by vertice index using numpy module'''
+    # vertice_index = argwhere(limits)
 
-    '''Retaining all triangles of interest'''
-    Bool_triangles = isin(surface.triangles, vertice_index)
-    Bool_triangles = Bool_triangles.astype('int32')
-    Bool_triangles[Bool_triangles == 0]= nan
-    ------
-    BoolT[BoolT ==0] = nan
-    '''Converting the boolean triangles logic to modify triangles array'''
-    nan_triangles[nan_triangles == 0 ] = nan
-    dataType = (surface.triangles).dtype
-    nan_value = min(nan_triangles.astype(str(dataType)))
-    tirangles = delete() """
+    # '''Retaining all triangles of interest'''
+    # Bool_triangles = isin(surface.triangles, vertice_index)
+    # Bool_triangles = Bool_triangles.astype('int32')
+    # Bool_triangles[Bool_triangles == 0]= nan
+    # ------
+    # BoolT[BoolT ==0] = nan
+    # '''Converting the boolean triangles logic to modify triangles array'''
+    # nan_triangles[nan_triangles == 0 ] = nan
+    # dataType = (surface.triangles).dtype
+    # nan_value = min(nan_triangles.astype(str(dataType)))
+    # tirangles = delete()
+####
 
-    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
-    abovePhi = phi <= (pi/2)
-    radialClose = (distance  < radius) & (distance > target_r)
+    #Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere
+    above_phi = phi <= (pi/2)
+    radial_close = (distance  < radius) & (distance > target_r)
 
-    """Single value outputs for definning topology"""
-    surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
-    surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
-    """ surface.area = surface_area(vertices, triangles) """
+    #Single value outputs for definning topology
+    surface.IRDFCarray = nanmean(radial_distance_above_phi_limitxy)
+    surface.Sum = nansum(radial_distance_above_phi_limitxy)
+    # surface.area = surface_area(vertices, triangles)
 
     surface.area = count_nonzero(surface.radialDistanceAbovePhiNoNans)
     surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
-    
-    """"Text file output"""
-    if output == True:
+
+    #Text file output
+    if output:
         with open('Areal Surface Roughness.csv', 'ab') as f:
-            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header="Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
     else:
         return
-    
+
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
