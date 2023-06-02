@@ -52,7 +52,7 @@ def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target =
     wait(session,frames=1)
     [measure_topology(session, surface, to_cell, radius, target, size, output)
         for surface, to_cell in zip(surface, to_cell)]
-    recolor_surfaces(session, surface, metric, palette, color_range, key)
+    recolor_surfaces(session, surface, palette, color_range, key, metric)
 
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
