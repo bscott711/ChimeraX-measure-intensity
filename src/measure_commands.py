@@ -119,11 +119,11 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     XY_deletes = where(XYZ_SearchR==0)
 
     XY_SearchR = distxy*abovePhi*radialClose
-
+    Points=XY_SearchR>0
 
     """Solving for unique X,Y coordinates in the upper hemisphere search"""
-    xx=x_coord*XY_SearchR
-    yy=y_coord*XY_SearchR
+    xx=x_coord*Points
+    yy=y_coord*Points
 
     xy_raw = column_stack((xx,yy))
     xy=unique(delete(xy_raw,XY_deletes,axis=0),axis=0)
