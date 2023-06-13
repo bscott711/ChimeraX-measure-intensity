@@ -12,16 +12,16 @@ from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg, StringArg)
 from chimerax.core.commands.cli import EnumOf
-"""from chimerax.surface import (surface_area)"""
 from chimerax.map.volumecommand import volume
 from chimerax.std_commands.cd import (cd)
 from os.path import exists
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
-                   count_nonzero, swapaxes, savetxt, column_stack,nansum, isin,min,
-                   argwhere, zeros, shape, nanstd, int_)
+                   count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
+                   unique, column_stack, round_, int64, abs, digitize, linspace,
+                   zeros, where, delete)
 from scipy.ndimage import (binary_dilation, binary_erosion,
-                           generate_binary_structure, iterate_structure)
+                           generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 
 
@@ -113,6 +113,40 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
     radialClose = (distance  < radius) & (distance > target_r)
+
+    """Logic statments for solving the unique X,Y coordinates in the upper hemisphere search"""
+    XYZ_SearchR = distance*abovePhi*radialClose
+    XY_deletes = where(XYZ_SearchR==0)
+
+    XY_SearchR = distxy*abovePhi*radialClose
+
+
+    """Solving for unique X,Y coordinates in the upper hemisphere search"""
+    xx=x_coord*XY_SearchR
+    yy=y_coord*XY_SearchR
+
+    xy_raw = column_stack((xx,yy))
+    xy=unique(delete(xy_raw,XY_deletes,axis=0),axis=0)
+
+    """Defining the pixel size from human defined parameter"""
+    width = size[1]
+
+    """Defining steps that will are approximately one pixel in length"""
+    steps = int64(round_(abs((2*radius)/(width))))
+
+    """Indexing the vertices that fall in one pixel of eachother along each axis""" 
+    xbins = digitize(xy[:,0],linspace(-8,8,steps))
+    ybins = digitize(xy[:,1],linspace(-8,8,steps))
+
+    """Making an artificial binary mask of 'excited pixels' from vertice location"""
+    ArtImg=zeros([steps,steps])
+    ArtImg[xbins,ybins]=1
+
+    """Filling holes and cutts in image"""
+    ArtImg_Filled=binary_erosion(((gaussian_filter(ArtImg,.5))>0),border_value=1,iterations=2)
+
+    """Area of pixels in X,Y plane of the hemispher search"""
+    Area_S= count_nonzero(ArtImg_Filled) * (size[1] * size[2])
 
     """Outputs for coloring vertices as surface. arguments"""
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
