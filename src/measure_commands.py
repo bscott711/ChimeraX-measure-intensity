@@ -139,11 +139,11 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     ybins = digitize(xy[:,1],linspace(-8,8,steps))
 
     """Making an artificial binary mask of 'excited pixels' from vertice location"""
-    ArtImg=zeros([steps,steps])
-    ArtImg[xbins,ybins]=1
+    ArtImg= zeros([steps,steps])
+    ArtImg[xbins,ybins]= 1
 
     """Filling holes and cutts in image"""
-    ArtImg_Filled=binary_erosion(((gaussian_filter(ArtImg,.5))>0),border_value=1,iterations=2)
+    ArtImg_Filled= binary_erosion(((gaussian_filter(ArtImg,.5))>0),border_value=1,iterations=2)
 
     """Area of pixels in X,Y plane of the hemispher search"""
     Area_S= count_nonzero(ArtImg_Filled) * (size[1] * size[2])
@@ -199,13 +199,14 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.area = count_nonzero(surface.radialDistanceAbovePhiNoNans)
     surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
-    
+    surface.ArealRoughnessperArea= surface.ArealRoughness / Area_S
+
     """"Text file output"""
     path = exists(output)
     if path == True:
         cd(session,str(output))
         with open('Areal Surface Roughness.csv', 'ab') as f:
-            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices", comments='')
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices Areal Roughness/um^2", comments='')
     else:
         return
     
