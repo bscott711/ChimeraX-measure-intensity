@@ -46,13 +46,13 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, metric='RPD', target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = 'None'):
+def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = 'None'):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
     [measure_topology(session, surface, to_cell, radius, target, size, output)
         for surface, to_cell in zip(surface, to_cell)]
-    recolor_surfaces(session, surface, palette, color_range, key, metric)
+    recolor_surfaces(session, surface,'rpd', palette, color_range, key)
 
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
@@ -159,35 +159,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
-
-    """ reconstructin matrix of bool vetices
-    limits = abovePhi * radialClose
-    v_x = x_coord*limits
-    v_y = y_coord*limits
-    v_z = z_coord*limits
-
-    vertices=zeros(shape(surface.vertices))
-
-    vertices[:,0]=v_x
-    vertices[:,1]=v_y
-    vertices[:,2]=v_z
-
-    '''Identifying triangles by vertice index using numpy module'''
-    vertice_index = argwhere(limits)
-
-    '''Retaining all triangles of interest'''
-    Bool_triangles = isin(surface.triangles, vertice_index)
-    Bool_triangles = Bool_triangles.astype('int32')
-    Bool_triangles[Bool_triangles == 0]= nan
-    ------
-    BoolT[BoolT ==0] = nan
-    '''Converting the boolean triangles logic to modify triangles array'''
-    nan_triangles[nan_triangles == 0 ] = nan
-    dataType = (surface.triangles).dtype
-    nan_value = min(nan_triangles.astype(str(dataType)))
-    tirangles = delete() """
-
-    """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
+    """Logic to identify vertices in the targets local (defined by radius input) around target upper hemisphere"""
     abovePhi = phi <= (pi/2)
     radialClose = (distance  < radius) & (distance > target_r)
 
@@ -201,14 +173,14 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     surface.ArealRoughnessperArea= surface.ArealRoughness / Area_S
 
-    """"Text file output"""
+    """Text file output"""
     path = exists(output)
     if path == True:
         cd(session,str(output))
         with open('Areal Surface Roughness.csv', 'ab') as f:
             savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices Areal Roughness/um^2", comments='')
     else:
-        return
+        return surface.radialDistanceAbovePhiNoNans
     
 
 def measure_intensity(surface, to_map, radius):
