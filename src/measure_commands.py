@@ -80,7 +80,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
     Author: Yoseph Loyd
-    Date:20230413"""
+    Date:20230614"""
     
     """Tell the system what target you are computing the areal roughness of."""
     if target == 'sRBC':
