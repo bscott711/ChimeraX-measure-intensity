@@ -46,7 +46,9 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
     recolor_composites(session, surface, palette, green_range, magenta_range)
 
 
-def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC', size=(.1028,.1028,.1028), palette=None, color_range= None, key=False, output = 'None'):
+def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC',
+                     size=(.1028,.1028,.1028), palette=None, color_range= 'full', key=False,
+                       output = 'None'):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
