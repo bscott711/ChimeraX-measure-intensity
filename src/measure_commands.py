@@ -86,7 +86,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     
     """Tell the system what target you are computing the areal roughness of."""
     if target == 'sRBC':
-        target_r = 2.25
+        target_r = 2
     elif target =='mRBC':
         target_r = 3
     else:
