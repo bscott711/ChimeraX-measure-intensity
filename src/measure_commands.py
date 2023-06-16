@@ -88,7 +88,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     if target == 'sRBC':
         target_r = 2
     elif target =='mRBC':
-        target_r = 3
+        target_r = 2.7
     else:
         return
     #Target not recognized
