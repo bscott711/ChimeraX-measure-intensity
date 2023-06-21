@@ -118,37 +118,52 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
 
     """Logic statments for solving the unique X,Y coordinates in the upper hemisphere search"""
     XYZ_SearchR = distance*abovePhi*radialClose
-    XY_deletes = where(XYZ_SearchR==0)
+    XY_SearchR = distance*abovePhi*radialClose
+    XY_deletes = where(XY_SearchR==0)
+    XYZ_deletes = where(XYZ_SearchR==0)
 
-    XY_SearchR = distxy*abovePhi*radialClose
-    Points=XY_SearchR>0
+    SearchR = distance*abovePhi*radialClose
+    Points=SearchR>0
 
     """Solving for unique X,Y coordinates in the upper hemisphere search"""
     xx=x_coord*Points
     yy=y_coord*Points
+    zz=z_coord*Points
 
     xy_raw = column_stack((xx,yy))
+    xyz_raw = column_stack((xx,yy,zz))
+
     xy=unique(delete(xy_raw,XY_deletes,axis=0),axis=0)
+    xyz=unique(delete(xyz_raw,XYZ_deletes,axis=0),axis=0)
 
     """Defining the pixel size from human defined parameter"""
-    width = size[1]
+    width = size[0]
 
     """Defining steps that will are approximately one pixel in length"""
     steps = int64(round_(abs((2*radius)/(width))))
 
     """Indexing the vertices that fall in one pixel of eachother along each axis""" 
-    xbins = digitize(xy[:,0],linspace(-8,8,steps))
-    ybins = digitize(xy[:,1],linspace(-8,8,steps))
+    xbins_xy = digitize(xyz[:,0],linspace(-8,8,steps))
+    ybins_xy = digitize(xyz[:,1],linspace(-8,8,steps))
+
+    xbins = digitize(xyz[:,0],linspace(-8,8,steps))
+    ybins = digitize(xyz[:,1],linspace(-8,8,steps))
+    zbins = digitize(xyz[:,2],linspace(-8,8,steps))
 
     """Making an artificial binary mask of 'excited pixels' from vertice location"""
-    ArtImg= zeros([steps,steps])
-    ArtImg[xbins,ybins]= 1
+    ArtImgxy= zeros([steps,steps])
+    ArtImgxy[xbins_xy,ybins_xy]= 1
+
+    ArtImgxyz= zeros([steps,steps,steps])
+    ArtImgxyz[xbins,ybins,zbins]= 1
 
     """Filling holes and cutts in image"""
-    ArtImg_Filled= binary_erosion(((gaussian_filter(ArtImg,.5))>0),border_value=1,iterations=2)
+    ArtImg_Filled= binary_erosion(((gaussian_filter(ArtImgxy,.5))>0),border_value=1,iterations=2)
+
+    ArtImg_Filledxyz = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
 
     """Area of pixels in X,Y plane of the hemispher search"""
-    Area_S= count_nonzero(ArtImg_Filled) * (size[1] * size[2])
+    Area_S= count_nonzero(ArtImg_Filled) * (size[1] * size[0])
 
     """Outputs for coloring vertices as surface. arguments"""
     radialDistanceAbovePhiLimitxy = abovePhi * radialClose * distance
@@ -170,7 +185,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
     """ surface.area = surface_area(vertices, triangles) """
 
-    surface.area = count_nonzero(surface.radialDistanceAbovePhiNoNans)
+    surface.area = count_nonzero(ArtImg_Filledxyz) * size[1]*size[2]*size[0]
     surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     surface.ArealRoughnessperArea= surface.ArealRoughness / Area_S
