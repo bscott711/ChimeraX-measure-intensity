@@ -114,15 +114,16 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
 
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
     abovePhi = phi <= (pi/2)
-    radialClose = (distance  < radius) & (distance > target_r)
+    outerlim = (distance  < radius)
+    radialClose = outerlim & (distance > target_r)
 
     """Logic statments for solving the unique X,Y coordinates in the upper hemisphere search"""
-    XYZ_SearchR = distance*abovePhi*radialClose
-    XY_SearchR = distance*abovePhi*radialClose
+    XYZ_SearchR = distance*abovePhi
+    XY_SearchR = distance*abovePhi
     XY_deletes = where(XY_SearchR==0)
     XYZ_deletes = where(XYZ_SearchR==0)
 
-    SearchR = distance*abovePhi*radialClose
+    SearchR = distance*abovePhi*outerlim
     Points=SearchR>0
 
     """Solving for unique X,Y coordinates in the upper hemisphere search"""
@@ -176,16 +177,13 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     surface.radialDistance = distance
     surface.theta = theta
     surface.phi = phi
-    """Logic to identify vertices in the targets local (defined by radius input) around target upper hemisphere"""
-    abovePhi = phi <= (pi/2)
-    radialClose = (distance  < radius) & (distance > target_r)
+    surface.areasearch = SearchR
 
     """Single value outputs for definning topology"""
     surface.IRDFCarray = nanmean(radialDistanceAbovePhiLimitxy)
     surface.Sum = nansum(radialDistanceAbovePhiLimitxy)
-    """ surface.area = surface_area(vertices, triangles) """
 
-    surface.area = count_nonzero(ArtImg_Filledxyz) * size[1]*size[2]*size[0]
+    surface.area = count_nonzero(ArtImg_Filledxyz) * size[0]*size[2]
     surface.ArealRoughness = sqrt(surface.IRDFCarray**2/(2*pi*target_r**2))
     surface.ArealRoughness_STD = nanstd(surface.radialDistanceAbovePhiLimitxy)/(2*pi*target_r**2)
     surface.ArealRoughnessperArea= surface.ArealRoughness / Area_S
@@ -320,6 +318,10 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.phi
         palette_string = 'brbg'
         max_range = pi
+    elif metric == 'area' and hasattr(surface, 'areasearch'):
+        measurement = surface.areasearch
+        palette_string = 'purples'
+        max_range = 1
     else:
         return
 
@@ -437,7 +439,7 @@ measure_composite_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
+    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area'])),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
@@ -457,7 +459,7 @@ recolor_composites_desc = CmdDesc(
 measure_topology_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_cell', SurfacesArg),
-             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg','rpd'])),
+             ('metric', EnumOf(['R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area'])),
              ('palette', ColormapArg),
              ('radius', Bounded(IntArg)),
              ('target', EnumOf(['sRBC', 'mRBC'])),
