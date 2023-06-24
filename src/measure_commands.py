@@ -193,7 +193,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     if path == True:
         cd(session,str(output))
         with open('Areal Surface Roughness.csv', 'ab') as f:
-            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]), header=f"Areal-Surface-Roughness S_q STD_Areal-Rougheness #_Vertices Areal Roughness/um^2", comments='')
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]), header=f"Areal-Surface-Roughness-S_q STD_Areal-Rougheness Surface_Area ArealRoughness/um^2", comments='')
     else:
         return surface.radialDistanceAbovePhiNoNans
     
