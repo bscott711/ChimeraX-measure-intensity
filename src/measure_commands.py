@@ -144,6 +144,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     steps = int64(round_(abs((2*radius)/(width))))
 
     """Indexing the vertices that fall in one pixel of eachother along each axis""" 
+    """Weird nearest neighbors approach"""
     xbins_xy = digitize(xyz[:,0],linspace(-8,8,steps))
     ybins_xy = digitize(xyz[:,1],linspace(-8,8,steps))
 
@@ -151,7 +152,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     ybins = digitize(xyz[:,1],linspace(-8,8,steps))
     zbins = digitize(xyz[:,2],linspace(-8,8,steps))
 
-    """Making an artificial binary mask of 'excited pixels' from vertice location"""
+    """Making an artificial binary mask of binned vertices, ('pixels')"""
     ArtImgxy= zeros([steps,steps])
     ArtImgxy[xbins_xy,ybins_xy]= 1
 
