@@ -48,11 +48,11 @@ def composite_series(session, surface, green_map, magenta_map, radius=15, palett
 
 def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC',
                      size=(.1028,.1028,.1028), palette=None, color_range= 'full', key=False,
-                       output = 'None'):
+                     phi_lim= 90, output = 'None'):
     """this is ment to output a color mapped for topology metrics (phi, theta and distance from the target centroid) This is for the whole timeseries move on to the individual outputs"""
     volume(session, voxel_size= size)
     wait(session,frames=1)
-    [measure_topology(session, surface, to_cell, radius, target, size, output)
+    [measure_topology(session, surface, to_cell, radius, target, size, phi_lim, output)
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface,'rpd', palette, color_range, key)
 
@@ -77,7 +77,7 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], output= 'None'):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], phi_lim= 90, output= 'None'):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
@@ -110,12 +110,13 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     distance = sqrt(z_squared + y_squared + x_squared)
     distxy = sqrt(x_squared + y_squared)
     theta = sign(y_coord)*arccos(x_coord / distxy)
-    phi = arccos(z_coord / distance)
+    phi = arccos(z_coord / distance) * (180/pi)
 
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
-    abovePhi = phi >= (pi/2)
+    abovePhi = phi <= phi_lim
     outerlim = (distance  < radius)
     radialClose = outerlim & (distance > target_r)
+
 
     """Logic statments for solving the unique X,Y coordinates in the upper hemisphere search"""
     XYZ_SearchR = distance*abovePhi
@@ -152,7 +153,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     ybins = digitize(xyz[:,1],linspace(-8,8,steps))
     zbins = digitize(xyz[:,2],linspace(-8,8,steps))
 
-    """Making an artificial binary mask of binned vertices, ('pixels')"""
+    """Making an artificial binary mask of binned vertices into 'pixels' from vertice location"""
     ArtImgxy= zeros([steps,steps])
     ArtImgxy[xbins_xy,ybins_xy]= 1
 
@@ -465,6 +466,7 @@ measure_topology_desc = CmdDesc(
              ('radius', Bounded(IntArg)),
              ('target', EnumOf(['sRBC', 'mRBC'])),
              ('color_range', ColormapRangeArg),
+             ('phi_lim', Bounded(IntArg)),
              ('output', StringArg),
              ('key', BoolArg)],
     required_arguments=['to_cell'],
