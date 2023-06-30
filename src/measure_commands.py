@@ -113,7 +113,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     phi = arccos(z_coord / distance)
 
     """Logic to identify vertices in the targets local (defined by radius input) around target's upper hemisphere"""
-    abovePhi = phi <= (pi/2)
+    abovePhi = phi >= (pi/2)
     outerlim = (distance  < radius)
     radialClose = outerlim & (distance > target_r)
 
