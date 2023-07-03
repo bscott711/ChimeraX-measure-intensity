@@ -253,7 +253,6 @@ def mask_image(mask, level, image_3d):
 
 def query_tree(init_verts, to_map, radius=inf, knn=200):
     """Create a KDtree from a set of points and query for nearest neighbors.
-    Returns:
     index: index of nearest neighbors within radius
     distance: Mean distance of nearest neighbors"""
     tree = KDTree(to_map)
