@@ -8,9 +8,10 @@
 from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.std_commands.wait import wait
+from chimerax.surface import vertex_convexity
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
-                                    SurfacesArg, StringArg)
+                                    SurfacesArg, StringArg, FloatArg, SurfaceArg)
 from chimerax.core.commands.cli import EnumOf
 from chimerax.map.volumecommand import volume
 from chimerax.std_commands.cd import (cd)
@@ -19,7 +20,7 @@ from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
-                   zeros, where, delete)
+                   zeros, where, delete, shape,min)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
@@ -56,6 +57,14 @@ def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC',
         for surface, to_cell in zip(surface, to_cell)]
     recolor_surfaces(session, surface,'rpd', palette, color_range, key)
 
+def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.1028,.1028,.1028), smoothing_iterations = 20,
+                 thresh = 0.3, knn=10, palette = None, color_range='full', key= False):
+    """This is designed to identify and track ridges that occur at phagosomes - YML"""
+    volume(session, voxel_size= size)
+    wait(session,frames=1)
+    [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn)
+        for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
+    recolor_surfaces(session, surface,'edges', palette, color_range, key)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -77,7 +86,8 @@ def measure_distance(surface, to_surface, knn):
     surface.distance = distance
 
 
-def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028], phi_lim= 90, output= 'None'):
+def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0.1028,0.1028,0.1028],
+                      phi_lim= 90, output= 'None'):
     """This command is designed to output a csv file of the surface metrics:
     areal surface roughness, areal surface roughness standard deviation and surface area per frame.
     Additionally this command can color vertices based on their distance from the target centroid.
@@ -195,9 +205,86 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     if path == True:
         cd(session,str(output))
         with open('Areal Surface Roughness.csv', 'ab') as f:
-            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]), header=f"Areal-Surface-Roughness-S_q STD_Areal-Rougheness Surface_Area ArealRoughness/um^2", comments='')
+            savetxt(f, column_stack([surface.ArealRoughness, surface.ArealRoughness_STD, surface.area, surface.ArealRoughnessperArea]),
+                     header=f"Areal-Surface-Roughness-S_q STD_Areal-Rougheness Surface_Area ArealRoughness/um^2", comments='')
     else:
         return surface.radialDistanceAbovePhiNoNans
+
+def measure_ridges(session, to_cell, surface, to_surface, radius = 8, smoothing_iterations = 20,
+                    thresh = 0.3, knn=10):
+    
+    """Define the target centroid from mid range x,y and z coordinates."""
+    centroid = mean(to_cell.vertices, axis=0)
+
+    """Vertice x,y and z coordinates from centroid"""
+    x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
+    x_coord_t, y_coord_t, z_coord_t = split(subtract(to_surface.vertices, centroid), 3, 1)
+
+    """Defining coordinates for surface t"""
+    x_coord = x_coord.flatten()
+    y_coord = y_coord.flatten()
+    z_coord = z_coord.flatten()
+    """Converting the cartisian coordinates into spherical coordinates for surface t"""
+    z_squared = z_coord ** 2
+    y_squared = y_coord ** 2
+    x_squared = x_coord ** 2
+    
+    distance = sqrt(z_squared + y_squared + x_squared)
+    distxy = sqrt(x_squared + y_squared)
+    theta = sign(y_coord)*arccos(x_coord / distxy)
+    phi = arccos(z_coord / distance) * (180/pi)
+
+    """Defining coordinates for surface t+1"""
+    x_coord_t = x_coord_t.flatten()
+    y_coord_t = y_coord_t.flatten()
+    z_coord_t = z_coord_t.flatten()
+    """Converting the cartisian coordinates into spherical coordinates for surface t+1"""
+    z_squared_t = z_coord_t ** 2
+    y_squared_t = y_coord_t ** 2
+    x_squared_t = x_coord_t ** 2
+
+    distance_t = sqrt(z_squared_t + y_squared_t + x_squared_t)
+    """distxy_t = sqrt(x_squared_t + y_squared_t)"""
+    """theta_t = sign(y_coord_t)*arccos(x_coord_t / distxy_t)"""
+    """phi_t = arccos(z_coord_t / distance_t) * (180/pi)"""
+    
+    """Paletting options for R, phi, and theta for surface t"""
+    surface.radialDistance = distance
+    surface.theta = theta
+    surface.phi = phi
+    
+    """Defining search restrictions"""
+    """z_shave = z_coord > (min(z_coord) + 0.3)"""
+    """z_shave_t = z_coord_t > (min(z_coord_t) + 0.3)"""
+
+    sphere = distance  < radius
+    sphere_t = distance_t  < radius
+
+    """Defining surfaces t and t+1 convexity without paletting"""
+    con = vertex_convexity(surface.vertices, surface.triangles, smoothing_iterations)
+    con_t = vertex_convexity(to_surface.vertices, to_surface.triangles, smoothing_iterations)
+
+    ind = (con > thresh)
+    ind_t = (con_t > thresh)
+
+    car = zeros(shape(surface.vertices))
+    car_t = zeros(shape(to_surface.vertices))
+
+    car[:,0]= surface.vertices[:,0]*ind*sphere
+    car[:,1]= surface.vertices[:,1]*ind*sphere
+    car[:,2]= surface.vertices[:,2]*ind*sphere
+
+    car_t[:,0]= to_surface.vertices[:,0]*ind_t*sphere_t
+    car_t[:,1]= to_surface.vertices[:,1]*ind_t*sphere_t
+    car_t[:,2]= to_surface.vertices[:,2]*ind_t*sphere_t
+
+    car[car==0]=nan
+    car_t[car_t==0]=nan
+
+    query_distance,_=query_tree(car, car_t, knn=knn)
+    
+    query_distance[isnan(query_distance)]=0
+    surface.q_dist=query_distance
     
 
 def measure_intensity(surface, to_map, radius):
@@ -323,6 +410,10 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.areasearch
         palette_string = 'purples'
         max_range = 1
+    elif metric == 'edges' and hasattr(surface, 'q_dist'):
+        measurement = surface.q_dist
+        palette_string = 'purples'
+        max_range = 10
     else:
         return
 
@@ -440,7 +531,7 @@ measure_composite_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area'])),
+    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area', 'edges'])),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
@@ -471,3 +562,18 @@ measure_topology_desc = CmdDesc(
     required_arguments=['to_cell'],
     synopsis='This measure function will output calculated axial surface roughness values (S_q)'
         'based on inputs surface-Macrophage, tocell- target, radius- search radius (um), targetr- target radius (um)')
+
+measure_ridges_desc = CmdDesc(
+    required=[('surface',SurfaceArg)],
+    keyword=[('to_surface', SurfaceArg),
+             ('to_cell', SurfaceArg),
+             ('smoothing_iterations', Bounded(IntArg)),
+             ('thresh', Bounded(FloatArg)),
+             ('palette', ColormapArg),
+             ('radius', Bounded(IntArg)),
+             ('knn', Bounded(IntArg)),
+             ('color_range', ColormapRangeArg),
+             ('key', BoolArg)],
+    required_arguments = ['to_surface','to_cell'],
+    synopsis = 'This function is in its first iteration. Current implimentation focuses on identifying high curvature'
+        'lamella edges for video recodings')
