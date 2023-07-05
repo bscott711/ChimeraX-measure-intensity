@@ -210,7 +210,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     else:
         return surface.radialDistanceAbovePhiNoNans
 
-def measure_ridges(session, to_cell, surface, to_surface, radius = 8, smoothing_iterations = 20,
+def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing_iterations = 20,
                     thresh = 0.3, knn=10):
     
     """Define the target centroid from mid range x,y and z coordinates."""
