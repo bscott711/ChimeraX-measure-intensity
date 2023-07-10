@@ -278,12 +278,13 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     car_t[:,1]= to_surface.vertices[:,1]*ind_t*sphere_t
     car_t[:,2]= to_surface.vertices[:,2]*ind_t*sphere_t
 
-    car[car==0]=nan
-    car_t[car_t==0]=nan
+    """car[car==0]=nan"""
+    """car_t[car_t==0]=nan"""
 
     query_distance,_=query_tree(car, car_t, knn=knn)
     
-    query_distance[isnan(query_distance)]=0
+    """query_distance[isnan(query_distance)]= 0"""
+    surface.edges = ind * sphere
     surface.q_dist=query_distance
     
 
@@ -410,9 +411,13 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         measurement = surface.areasearch
         palette_string = 'purples'
         max_range = 1
-    elif metric == 'edges' and hasattr(surface, 'q_dist'):
-        measurement = surface.q_dist
+    elif metric == 'edges' and hasattr(surface, 'edges'):
+        measurement = surface.edges * 1
         palette_string = 'purples'
+        max_range = 10
+    elif metric == 'qd' and hasattr(surface, 'q_dist'):
+        measurement = surface.q_dist * 1
+        palette_string = 'brbg'
         max_range = 10
     else:
         return
@@ -531,7 +536,7 @@ measure_composite_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area', 'edges'])),
+    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area', 'edges', 'qd'])),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
@@ -570,7 +575,7 @@ measure_ridges_desc = CmdDesc(
              ('smoothing_iterations', Bounded(IntArg)),
              ('thresh', Bounded(FloatArg)),
              ('palette', ColormapArg),
-             ('radius', Bounded(IntArg)),
+             ('radius', Bounded(FloatArg)),
              ('knn', Bounded(IntArg)),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
