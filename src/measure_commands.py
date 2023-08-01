@@ -137,7 +137,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     SearchR = distance*abovePhi*outerlim
     Points=SearchR>0
 
-    """Solving for unique X,Y coordinates in the upper hemisphere search"""
+    """Solving for unique X,Y,Z coordinates in the upper hemisphere search"""
     xx=x_coord*Points
     yy=y_coord*Points
     zz=z_coord*Points
