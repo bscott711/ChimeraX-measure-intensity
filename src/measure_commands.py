@@ -299,7 +299,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
 
     """Skeletonizing the reconstructed image"""
     RidgePathLength = skeletonize((ArtImg*1),method='lee')
-    surface.pathlength = RidgePathLength
+    surface.pathlength = count_nonzero(RidgePathLength) * size[0]
 
     """Text file output"""
     path = exists(output)
@@ -639,6 +639,7 @@ measure_ridges_desc = CmdDesc(
              ('radius', Bounded(FloatArg)),
              ('knn', Bounded(IntArg)),
              ('color_range', ColormapRangeArg),
+             ('output', StringArg),
              ('key', BoolArg)],
     required_arguments = ['to_surface','to_cell'],
     synopsis = 'This function is in its first iteration. Current implimentation focuses on identifying high curvature'
