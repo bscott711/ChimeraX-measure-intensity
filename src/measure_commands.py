@@ -60,12 +60,12 @@ def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC',
     recolor_surfaces(session, surface,'rpd', palette, color_range, key)
 
 def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.1028,.1028,.1028), smoothing_iterations = 20,
-                 thresh = 0.3, knn=10, palette = None, color_range='full', key= False, output= 'None'):
+                 thresh = 0.3, knn=10, palette = None, color_range='full', key= False, clip = 0.5, output= 'None', track = False):
     """This is designed to identify and track ridges that occur at phagosomes - YML"""
     volume(session, voxel_size= size)
-    wait(session,frames=1)
+    wait(session, frames=1)
     [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn,
-                    size, output)
+                    size, clip, output, track)
         for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
     recolor_surfaces(session, surface,'edges', palette, color_range, key)
 
@@ -214,19 +214,24 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
         return surface.radialDistanceAbovePhiNoNans
 
 def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing_iterations = 20,
-                    thresh = 0.3, knn=10, size=[0.1028,0.1028,0.1028], output= 'None'):
+                    thresh = 0.3, knn=10, size=[0.1028,0.1028,0.1028], clip=0.5, output= 'None', track= False):
     
     """Define the target centroid from mid range x,y and z coordinates."""
     centroid = mean(to_cell.vertices, axis=0)
 
     """Vertice x,y and z coordinates from centroid"""
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
-    x_coord_t, y_coord_t, z_coord_t = split(subtract(to_surface.vertices, centroid), 3, 1)
+
+    if track == True:
+        x_coord_t, y_coord_t, z_coord_t = split(subtract(to_surface.vertices, centroid), 3, 1)
+    else:
+        return
 
     """Defining coordinates for surface t"""
     x_coord = x_coord.flatten()
     y_coord = y_coord.flatten()
     z_coord = z_coord.flatten()
+
     """Converting the cartisian coordinates into spherical coordinates for surface t"""
     z_squared = z_coord ** 2
     y_squared = y_coord ** 2
@@ -237,16 +242,19 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance) * (180/pi)
 
-    """Defining coordinates for surface t+1"""
-    x_coord_t = x_coord_t.flatten()
-    y_coord_t = y_coord_t.flatten()
-    z_coord_t = z_coord_t.flatten()
-    """Converting the cartisian coordinates into spherical coordinates for surface t+1"""
-    z_squared_t = z_coord_t ** 2
-    y_squared_t = y_coord_t ** 2
-    x_squared_t = x_coord_t ** 2
+    if track == True:
+        """Defining coordinates for surface t+1"""
+        x_coord_t = x_coord_t.flatten()
+        y_coord_t = y_coord_t.flatten()
+        z_coord_t = z_coord_t.flatten()
+        """Converting the cartisian coordinates into spherical coordinates for surface t+1"""
+        z_squared_t = z_coord_t ** 2
+        y_squared_t = y_coord_t ** 2
+        x_squared_t = x_coord_t ** 2
 
-    distance_t = sqrt(z_squared_t + y_squared_t + x_squared_t)
+        distance_t = sqrt(z_squared_t + y_squared_t + x_squared_t)
+    else:
+        return
     
     """Paletting options for R, phi, and theta for surface t"""
     surface.radialDistance = distance
@@ -255,34 +263,45 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     
     """Defining search restrictions"""
     sphere = distance  < radius
-    sphere_t = distance_t  < radius
-    try: Clip= z_coord > (min( z_coord[ where(phi<165) ])+0.5)
+
+    if track == True:
+        sphere_t = distance_t  < radius
+    else:
+        return
+
+    try: Clip= z_coord > (min( z_coord[ where(phi<165) ])+clip)
     except ValueError:  #raised if `Clip` is empty.
         pass
 
     """Defining surfaces t and t+1 convexity without paletting"""
     con = vertex_convexity(surface.vertices, surface.triangles, smoothing_iterations)
-    con_t = vertex_convexity(to_surface.vertices, to_surface.triangles, smoothing_iterations)
-
+    
     ind = (con > thresh)
-    ind_t = (con_t > thresh)
 
     car = zeros(shape(surface.vertices))
-    car_t = zeros(shape(to_surface.vertices))
 
     car[:,0]= surface.vertices[:,0]*ind*sphere
     car[:,1]= surface.vertices[:,1]*ind*sphere
     car[:,2]= surface.vertices[:,2]*ind*sphere
 
-    car_t[:,0]= to_surface.vertices[:,0]*ind_t*sphere_t
-    car_t[:,1]= to_surface.vertices[:,1]*ind_t*sphere_t
-    car_t[:,2]= to_surface.vertices[:,2]*ind_t*sphere_t
 
-    query_distance,_=query_tree(car, car_t, knn=knn)
+    if track == True:
+        con_t = vertex_convexity(to_surface.vertices, to_surface.triangles, smoothing_iterations)
 
-    """The Average distance of the nearest neighbors"""
-    surface.q_dist=query_distance
+        ind_t = (con_t > thresh)
+    
+        car_t = zeros(shape(to_surface.vertices))
 
+        car_t[:,0]= to_surface.vertices[:,0]*ind_t*sphere_t
+        car_t[:,1]= to_surface.vertices[:,1]*ind_t*sphere_t
+        car_t[:,2]= to_surface.vertices[:,2]*ind_t*sphere_t
+        query_distance,_=query_tree(car, car_t, knn=knn)
+
+        """The Average distance of the nearest neighbors"""
+        surface.q_dist=query_distance
+    else:
+        return
+    
     """Solving for the surface area of high curved regions and the high curve path length"""
 
     """High curve edges"""
@@ -292,7 +311,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     SearchLim = ind * sphere * Clip
 
     """Reconstructed image"""
-    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord,SearchLim, radius, size)
+    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, surface.edges, radius, size)
 
     """Surface Area of high curved regions"""
     surface.Area = count_nonzero(ArtImg) * size[0]*size[1]
@@ -639,7 +658,9 @@ measure_ridges_desc = CmdDesc(
              ('radius', Bounded(FloatArg)),
              ('knn', Bounded(IntArg)),
              ('color_range', ColormapRangeArg),
+             ('clip', Bounded(FloatArg)),
              ('output', StringArg),
+             ('track', BoolArg),
              ('key', BoolArg)],
     required_arguments = ['to_surface','to_cell'],
     synopsis = 'This function is in its first iteration. Current implimentation focuses on identifying high curvature'
