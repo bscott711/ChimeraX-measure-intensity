@@ -21,12 +21,12 @@ from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
-                   zeros, where, delete, shape, argmin, min)
+                   zeros, where, delete, shape, argmin, min, shape, isin)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import skeletonize
-from skimage.measure import label
+"""from skimage.measure import label"""
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
@@ -312,7 +312,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     SearchLim = ind * sphere * Clip
 
     """Reconstructed image"""
-    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, surface.edges, radius, size)
+    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, SearchLim=surface.edges, radius=radius, size=size, dust=False)
 
     """Surface Area of high curved regions"""
     surface.Area = count_nonzero(ArtImg) * size[0]*size[1]
@@ -321,19 +321,19 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     RidgePathLength = skeletonize((ArtImg*1),method='lee')
 
     """size exclusion for found ridges"""
-    cc=skimage.measure.label(RidgePathLength)
+    """    cc=label(RidgePathLength)
     
-    _,counts=numpy.unique(cc,return_counts=True)
+    _,counts=unique(cc,return_counts=True)
 
     f=counts
-    f[f==numpy.max(counts)]=0
+    f[f==nanmax(counts)]=0
     p=where(f >= 10)
 
-    exclusion=zeros(numpy.shape(cc))
-    exclusion[where(numpy.isin(cc,p)==True)]=1
-    
+    exclusion=zeros(shape(cc))
+    exclusion[where(isin(cc,p)==True)]=1
+   """ 
     """summed path length"""
-    surface.pathlength = count_nonzero(exclusion) * size[0]
+    surface.pathlength = count_nonzero(RidgePathLength) * size[0]
 
     """Text file output"""
     path = exists(output)
@@ -359,6 +359,7 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size, d
 
     xyz_raw = column_stack((xx,yy,zz))
 
+    """Reconstruct the image from points we define"""
     xyz=unique(delete(xyz_raw,XYZ_deletes,axis=0),axis=0)
 
     """Defining the pixel size from human defined parameter"""
@@ -368,37 +369,60 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size, d
     steps = int64(round_(abs((2*radius)/(width))))
 
     """Indexing the vertices that fall in one pixel of eachother along each axis""" 
-    """Weird nearest neighbors approach"""    
+    """nearest neighbors approach"""    
     xbins = digitize(xyz[:,0],linspace(-1*(radius),radius,steps))
     ybins = digitize(xyz[:,1],linspace(-1*(radius),radius,steps))
     zbins = digitize(xyz[:,2],linspace(-1*(radius),radius,steps))
 
     """Making an artificial binary mask of binned vertices into 'pixels' from vertice location"""
-
+    
     ArtImgxyz= zeros([steps,steps,steps])
     ArtImgxyz[xbins,ybins,zbins]= 1
     
-    """Fixing"""
+    """Filling holes and cutts in image or ArtImg_Filledxyz"""
+    ArtImg_features= binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
 
-    if dust==True:
-        """Filling holes and cutts in image or ArtImg_Filledxyz"""
-        ArtImgOne = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-        
-        """Excluding Neighboring cells in the search"""
-        ccart = label(ArtImgOne)
-        _,counts = numpy.unique(ccart,return_counts=True)
-        f = counts
-        f[f==numpy.max(counts)] = 0
-        p = where(f == numpy.max(f))
-
-        ArtImgDust = zeros(numpy.shape(ccart))
-        ArtImgDust[where(numpy.isin(ccart,p)==True)]=1
-        ArtImgDust = ArtImg.astype('int8')
-    else:
-        """Filling holes and cutts in image or ArtImg_Filledxyz"""
-        ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-        ArtImg = ArtImg.astype('int8')
+    ArtImg = ArtImg_features.astype('int8')
     return ArtImg
+"""    if dust==True:"""
+"""search limit for the whole roi we care about"""
+"""Solving for unique X,Y,Z coordinates in the search"""
+"""xx=x_coord[:]
+yy=y_coord[:]
+zz=z_coord[:]
+
+xyz_raw_whole = column_stack((xx,yy,zz))
+
+xyz_whole=unique(delete(xyz_raw_whole,XYZ_deletes,axis=0),axis=0)
+"""
+"""Indexing the vertices that fall in one pixel of eachother along each axis""" 
+"""nearest neighbors approach"""    
+"""xbins_whole = digitize(xyz_whole[:,0],linspace(-1*(radius),radius,steps))
+ybins_whole = digitize(xyz_whole[:,1],linspace(-1*(radius),radius,steps))
+zbins_whole = digitize(xyz_whole[:,2],linspace(-1*(radius),radius,steps))
+"""
+"""Making an artificial binary mask of binned vertices into 'pixels' from vertice location"""
+"""ArtImgxyz_whole= zeros([steps,steps,steps])
+ArtImgxyz_whole[xbins_whole,ybins_whole,zbins_whole]= 1
+"""
+"""Filling holes and cutts in image or ArtImg_Filledxyz"""
+"""ArtImgOne_whole = binary_erosion(((gaussian_filter(ArtImgxyz_whole,.2))>0),border_value=1,iterations=1)
+"""
+"""Excluding Neighboring cells in the search"""
+"""ccart = label(ArtImgOne_whole)
+_,counts = unique(ccart,return_counts=True)
+f = counts
+f[f==max(counts)] = 0
+p = where(f == max(f))
+
+ArtImgDust = zeros(shape(ccart))
+ArtImgDust[where(isin(ccart,p)==True)]=1
+
+ArtImg = (ArtImgDust * ArtImg_features)
+ArtImg = ArtImg.astype('int8')
+return ArtImg"""
+"""else:"""
+
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
