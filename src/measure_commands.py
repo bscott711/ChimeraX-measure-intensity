@@ -25,7 +25,7 @@ from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
-from skimage.morphology import skeletonize
+from skimage.morphology import (skeletonize,label)
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
@@ -60,13 +60,18 @@ def topology_series(session, surface, to_cell, radius= 8, target = 'sRBC',
     recolor_surfaces(session, surface,'rpd', palette, color_range, key)
 
 def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.1028,.1028,.1028), smoothing_iterations = 20,
-                 thresh = 0.3, knn=10, palette = None, color_range='full', key= False, clip = 0.5, output= 'None', track = False):
+                 thresh = 0.3, knn=10, palette = None, color_range='full', key= False, clip = 0.5, output= 'None', track = False,
+                 exclusion= 0.5):
+    
     """This is designed to identify and track ridges that occur at phagosomes - YML"""
+
     volume(session, voxel_size= size)
     wait(session, frames=1)
+
     [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn,
-                    size, clip, output, track)
+                    size, clip, output, track, exclusion)
         for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
+
     recolor_surfaces(session, surface,'edges', palette, color_range, key)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
@@ -214,18 +219,14 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
         return surface.radialDistanceAbovePhiNoNans
 
 def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing_iterations = 20,
-                    thresh = 0.3, knn=10, size=[0.1028,0.1028,0.1028], clip=0.5, output= 'None', track= False):
+                    thresh = 0.3, knn=10, size=[0.1028,0.1028,0.1028], clip=0.5, output= 'None', track = False,
+                    exclusion = 0.5):
     
     """Define the target centroid from mid range x,y and z coordinates."""
     centroid = mean(to_cell.vertices, axis=0)
 
     """Vertice x,y and z coordinates from centroid"""
     x_coord, y_coord, z_coord = split(subtract(surface.vertices, centroid), 3, 1)
-
-    if track == True:
-        x_coord_t, y_coord_t, z_coord_t = split(subtract(to_surface.vertices, centroid), 3, 1)
-    else:
-        return
 
     """Defining coordinates for surface t"""
     x_coord = x_coord.flatten()
@@ -242,20 +243,6 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     theta = sign(y_coord)*arccos(x_coord / distxy)
     phi = arccos(z_coord / distance) * (180/pi)
 
-    if track == True:
-        """Defining coordinates for surface t+1"""
-        x_coord_t = x_coord_t.flatten()
-        y_coord_t = y_coord_t.flatten()
-        z_coord_t = z_coord_t.flatten()
-        """Converting the cartisian coordinates into spherical coordinates for surface t+1"""
-        z_squared_t = z_coord_t ** 2
-        y_squared_t = y_coord_t ** 2
-        x_squared_t = x_coord_t ** 2
-
-        distance_t = sqrt(z_squared_t + y_squared_t + x_squared_t)
-    else:
-        return
-    
     """Paletting options for R, phi, and theta for surface t"""
     surface.radialDistance = distance
     surface.theta = theta
@@ -263,11 +250,6 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     
     """Defining search restrictions"""
     sphere = distance  < radius
-
-    if track == True:
-        sphere_t = distance_t  < radius
-    else:
-        return
 
     try: Clip= z_coord > (min( z_coord[ where(phi<165) ])+clip)
     except ValueError:  #raised if `Clip` is empty.
@@ -283,13 +265,65 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     car[:,0]= surface.vertices[:,0]*ind*sphere
     car[:,1]= surface.vertices[:,1]*ind*sphere
     car[:,2]= surface.vertices[:,2]*ind*sphere
+    
+    """Solving for the surface area of high curved regions and the high curve path length"""
 
+    """High curve edges"""
+    surface.edges = ind * sphere *Clip + 0
+
+    """search limitations """
+    SearchLim = ind * sphere * Clip
+
+    """Reconstructed image"""
+    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, SearchLim=surface.edges, radius=radius, size=size)
+
+    """Surface Area of high curved regions"""
+    surface.Area = count_nonzero(ArtImg) * size[0]*size[1]
+
+    """Skeletonizing the reconstructed image"""
+    RidgePathLength = skeletonize((ArtImg*1),method='lee')
+    """Connected components: paths"""
+    RidgeCc = label(RidgePathLength)
+    _,counts=unique(RidgeCc,return_counts=True)
+    """excluding all zero points in the matrix / Image"""
+    f=counts
+    f[f==max(counts)]=0
+    """size exclusion"""
+    size_exclusion= exclusion / size[0]
+    p=where(f >= size_exclusion)
+
+    surface.pathlengthsabovethresh= count_nonzero(isin(RidgeCc,p)==True)*size[0]
+
+    surface.pathlength = count_nonzero(RidgePathLength) * size[0]
+    surface.pathlengthsabovethresh= count_nonzero(isin(RidgeCc,p)==True)*size[0]
+
+    """Text file output"""
+    path = exists(output)
+    if path == True:
+        cd(session,str(output))
+        with open('RidgeInfo.csv', 'ab') as f:
+            savetxt(f, column_stack([surface.Area, surface.pathlength, surface.pathlengthsabovethresh]),
+                     header=f"High_Curve_Surface_Area Lamella_pathlength Lamella_pathlength_above_thresh", comments='')
+    else:
+        return surface.pathlength
 
     if track == True:
+        x_coord_t, y_coord_t, z_coord_t = split(subtract(to_surface.vertices, centroid), 3, 1)
+        """Defining coordinates for surface t+1"""
+        x_coord_t = x_coord_t.flatten()
+        y_coord_t = y_coord_t.flatten()
+        z_coord_t = z_coord_t.flatten()
+        """Converting the cartisian coordinates into spherical coordinates for surface t+1"""
+        z_squared_t = z_coord_t ** 2
+        y_squared_t = y_coord_t ** 2
+        x_squared_t = x_coord_t ** 2
+
+        distance_t = sqrt(z_squared_t + y_squared_t + x_squared_t)
+        sphere_t = distance_t  < radius
         con_t = vertex_convexity(to_surface.vertices, to_surface.triangles, smoothing_iterations)
 
         ind_t = (con_t > thresh)
-    
+
         car_t = zeros(shape(to_surface.vertices))
 
         car_t[:,0]= to_surface.vertices[:,0]*ind_t*sphere_t
@@ -299,50 +333,9 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
 
         """The Average distance of the nearest neighbors"""
         surface.q_dist=query_distance
+        return surface.q_dist
     else:
-        return
-    
-    """Solving for the surface area of high curved regions and the high curve path length"""
-
-    """High curve edges"""
-    surface.edges = ind * sphere *Clip
-
-    """search limitations """
-    SearchLim = ind * sphere * Clip
-
-    """Reconstructed image"""
-    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, SearchLim=surface.edges, radius=radius, size=size, dust=False)
-
-    """Surface Area of high curved regions"""
-    surface.Area = count_nonzero(ArtImg) * size[0]*size[1]
-
-    """Skeletonizing the reconstructed image"""
-    RidgePathLength = skeletonize((ArtImg*1),method='lee')
-
-    """size exclusion for found ridges"""
-    cc=skimage.measure.label(RidgePathLength)
-    
-    _,counts=numpy.unique(cc,return_counts=True)
-
-    f=counts
-    f[f==numpy.max(counts)]=0
-    p=where(f >= 10)
-
-    exclusion=zeros(numpy.shape(cc))
-    exclusion[where(numpy.isin(cc,p)==True)]=1
-    
-    """summed path length"""
-    surface.pathlength = count_nonzero(exclusion) * size[0]
-
-    """Text file output"""
-    path = exists(output)
-    if path == True:
-        cd(session,str(output))
-        with open('RidgeInfo.csv', 'ab') as f:
-            savetxt(f, column_stack([surface.Area, surface.pathlength]),
-                     header=f"High_Curve_Surface_Area Lamella_pathlength", comments='')
-    else:
-        return surface.pathlength
+        return 
 
 def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     """This script will reconstruct an image form the location of vertices in your rendered surface"""
@@ -377,67 +370,10 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     
     ArtImgxyz= zeros([steps,steps,steps])
     ArtImgxyz[xbins,ybins,zbins]= 1
-    
-    """Fixing"""
 
-    if dust==True:
-        """Filling holes and cutts in image or ArtImg_Filledxyz"""
-        ArtImgOne = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-        
-        """Excluding Neighboring cells in the search"""
-        ccart = label(ArtImgOne)
-        _,counts = numpy.unique(ccart,return_counts=True)
-        f = counts
-        f[f==numpy.max(counts)] = 0
-        p = where(f == numpy.max(f))
-
-        ArtImgDust = zeros(numpy.shape(ccart))
-        ArtImgDust[where(numpy.isin(ccart,p)==True)]=1
-        ArtImgDust = ArtImg.astype('int8')
-    else:
-        """Filling holes and cutts in image or ArtImg_Filledxyz"""
-        ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-        ArtImg = ArtImg.astype('int8')
+    ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+    ArtImg = ArtImg.astype('int8')
     return ArtImg
-"""    if dust==True:"""
-"""search limit for the whole roi we care about"""
-"""Solving for unique X,Y,Z coordinates in the search"""
-"""xx=x_coord[:]
-yy=y_coord[:]
-zz=z_coord[:]
-
-xyz_raw_whole = column_stack((xx,yy,zz))
-
-xyz_whole=unique(delete(xyz_raw_whole,XYZ_deletes,axis=0),axis=0)
-"""
-"""Indexing the vertices that fall in one pixel of eachother along each axis""" 
-"""nearest neighbors approach"""    
-"""xbins_whole = digitize(xyz_whole[:,0],linspace(-1*(radius),radius,steps))
-ybins_whole = digitize(xyz_whole[:,1],linspace(-1*(radius),radius,steps))
-zbins_whole = digitize(xyz_whole[:,2],linspace(-1*(radius),radius,steps))
-"""
-"""Making an artificial binary mask of binned vertices into 'pixels' from vertice location"""
-"""ArtImgxyz_whole= zeros([steps,steps,steps])
-ArtImgxyz_whole[xbins_whole,ybins_whole,zbins_whole]= 1
-"""
-"""Filling holes and cutts in image or ArtImg_Filledxyz"""
-"""ArtImgOne_whole = binary_erosion(((gaussian_filter(ArtImgxyz_whole,.2))>0),border_value=1,iterations=1)
-"""
-"""Excluding Neighboring cells in the search"""
-"""ccart = label(ArtImgOne_whole)
-_,counts = unique(ccart,return_counts=True)
-f = counts
-f[f==max(counts)] = 0
-p = where(f == max(f))
-
-ArtImgDust = zeros(shape(ccart))
-ArtImgDust[where(isin(ccart,p)==True)]=1
-
-ArtImg = (ArtImgDust * ArtImg_features)
-ArtImg = ArtImg.astype('int8')
-return ArtImg"""
-"""else:"""
-
 
 def measure_intensity(surface, to_map, radius):
     """Measure the local intensity within radius r of the surface."""
@@ -567,7 +503,7 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         palette_string = 'purples'
         max_range = 10
     elif metric == 'qd' and hasattr(surface, 'q_dist'):
-        measurement = surface.q_dist * 1
+        measurement = surface.q_dist.astype('int64')
         palette_string = 'brbg'
         max_range = 10
     else:
@@ -732,6 +668,7 @@ measure_ridges_desc = CmdDesc(
              ('clip', Bounded(FloatArg)),
              ('output', StringArg),
              ('track', BoolArg),
+             ('exclusion', Bounded(FloatArg)),
              ('key', BoolArg)],
     required_arguments = ['to_surface','to_cell'],
     synopsis = 'This function is in its first iteration. Current implimentation focuses on identifying high curvature'
