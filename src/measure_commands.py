@@ -26,10 +26,6 @@ from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import skeletonize
-<<<<<<< HEAD
-"""from skimage.measure import label"""
-=======
->>>>>>> parent of 2f7b019 (Work)
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
@@ -322,24 +318,21 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
 
     """Skeletonizing the reconstructed image"""
     RidgePathLength = skeletonize((ArtImg*1),method='lee')
-<<<<<<< HEAD
 
     """size exclusion for found ridges"""
-    """    cc=label(RidgePathLength)
+    cc=skimage.measure.label(RidgePathLength)
     
-    _,counts=unique(cc,return_counts=True)
+    _,counts=numpy.unique(cc,return_counts=True)
 
     f=counts
-    f[f==nanmax(counts)]=0
+    f[f==numpy.max(counts)]=0
     p=where(f >= 10)
 
-    exclusion=zeros(shape(cc))
-    exclusion[where(isin(cc,p)==True)]=1
-   """ 
+    exclusion=zeros(numpy.shape(cc))
+    exclusion[where(numpy.isin(cc,p)==True)]=1
+    
     """summed path length"""
-=======
->>>>>>> parent of 2f7b019 (Work)
-    surface.pathlength = count_nonzero(RidgePathLength) * size[0]
+    surface.pathlength = count_nonzero(exclusion) * size[0]
 
     """Text file output"""
     path = exists(output)
@@ -384,18 +377,27 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     
     ArtImgxyz= zeros([steps,steps,steps])
     ArtImgxyz[xbins,ybins,zbins]= 1
-<<<<<<< HEAD
     
-    """Filling holes and cutts in image or ArtImg_Filledxyz"""
-    ArtImg_features= binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+    """Fixing"""
 
-    ArtImg = ArtImg_features.astype('int8')
-=======
+    if dust==True:
+        """Filling holes and cutts in image or ArtImg_Filledxyz"""
+        ArtImgOne = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+        
+        """Excluding Neighboring cells in the search"""
+        ccart = label(ArtImgOne)
+        _,counts = numpy.unique(ccart,return_counts=True)
+        f = counts
+        f[f==numpy.max(counts)] = 0
+        p = where(f == numpy.max(f))
 
-    """Filling holes and cutts in image or ArtImg_Filledxyz"""
-    ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-    ArtImg = ArtImg.astype('int8')
->>>>>>> parent of 2f7b019 (Work)
+        ArtImgDust = zeros(numpy.shape(ccart))
+        ArtImgDust[where(numpy.isin(ccart,p)==True)]=1
+        ArtImgDust = ArtImg.astype('int8')
+    else:
+        """Filling holes and cutts in image or ArtImg_Filledxyz"""
+        ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+        ArtImg = ArtImg.astype('int8')
     return ArtImg
 """    if dust==True:"""
 """search limit for the whole roi we care about"""
