@@ -26,7 +26,10 @@ from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import skeletonize
+<<<<<<< HEAD
 """from skimage.measure import label"""
+=======
+>>>>>>> parent of 2f7b019 (Work)
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
@@ -319,6 +322,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
 
     """Skeletonizing the reconstructed image"""
     RidgePathLength = skeletonize((ArtImg*1),method='lee')
+<<<<<<< HEAD
 
     """size exclusion for found ridges"""
     """    cc=label(RidgePathLength)
@@ -333,6 +337,8 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     exclusion[where(isin(cc,p)==True)]=1
    """ 
     """summed path length"""
+=======
+>>>>>>> parent of 2f7b019 (Work)
     surface.pathlength = count_nonzero(RidgePathLength) * size[0]
 
     """Text file output"""
@@ -345,7 +351,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     else:
         return surface.pathlength
 
-def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size, dust):
+def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     """This script will reconstruct an image form the location of vertices in your rendered surface"""
 
     """Logic statments for specific objects we care about"""
@@ -378,11 +384,18 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size, d
     
     ArtImgxyz= zeros([steps,steps,steps])
     ArtImgxyz[xbins,ybins,zbins]= 1
+<<<<<<< HEAD
     
     """Filling holes and cutts in image or ArtImg_Filledxyz"""
     ArtImg_features= binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
 
     ArtImg = ArtImg_features.astype('int8')
+=======
+
+    """Filling holes and cutts in image or ArtImg_Filledxyz"""
+    ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+    ArtImg = ArtImg.astype('int8')
+>>>>>>> parent of 2f7b019 (Work)
     return ArtImg
 """    if dust==True:"""
 """search limit for the whole roi we care about"""
