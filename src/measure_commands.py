@@ -26,6 +26,7 @@ from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import skeletonize
+from skimage.measure import label
 
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
@@ -318,7 +319,21 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
 
     """Skeletonizing the reconstructed image"""
     RidgePathLength = skeletonize((ArtImg*1),method='lee')
-    surface.pathlength = count_nonzero(RidgePathLength) * size[0]
+
+    """size exclusion for found ridges"""
+    cc=skimage.measure.label(RidgePathLength)
+    
+    _,counts=numpy.unique(cc,return_counts=True)
+
+    f=counts
+    f[f==numpy.max(counts)]=0
+    p=where(f >= 10)
+
+    exclusion=zeros(numpy.shape(cc))
+    exclusion[where(numpy.isin(cc,p)==True)]=1
+    
+    """summed path length"""
+    surface.pathlength = count_nonzero(exclusion) * size[0]
 
     """Text file output"""
     path = exists(output)
@@ -330,7 +345,7 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     else:
         return surface.pathlength
 
-def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
+def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size, dust):
     """This script will reconstruct an image form the location of vertices in your rendered surface"""
 
     """Logic statments for specific objects we care about"""
@@ -362,10 +377,27 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
 
     ArtImgxyz= zeros([steps,steps,steps])
     ArtImgxyz[xbins,ybins,zbins]= 1
+    
+    """Fixing"""
 
-    """Filling holes and cutts in image or ArtImg_Filledxyz"""
-    ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
-    ArtImg = ArtImg.astype('int8')
+    if dust==True:
+        """Filling holes and cutts in image or ArtImg_Filledxyz"""
+        ArtImgOne = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+        
+        """Excluding Neighboring cells in the search"""
+        ccart = label(ArtImgOne)
+        _,counts = numpy.unique(ccart,return_counts=True)
+        f = counts
+        f[f==numpy.max(counts)] = 0
+        p = where(f == numpy.max(f))
+
+        ArtImgDust = zeros(numpy.shape(ccart))
+        ArtImgDust[where(numpy.isin(ccart,p)==True)]=1
+        ArtImgDust = ArtImg.astype('int8')
+    else:
+        """Filling holes and cutts in image or ArtImg_Filledxyz"""
+        ArtImg = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)
+        ArtImg = ArtImg.astype('int8')
     return ArtImg
 
 def measure_intensity(surface, to_map, radius):
