@@ -31,6 +31,7 @@ will be displayed without the ChimeraX- prefix.
     <Dependency name='scikit-image'/>
     <Dependency name='scipy'/>
     <Dependency name='numpy'/>
+    <Dependency name='matplotlib'/>
   </Dependencies>
 
   <Classifiers>

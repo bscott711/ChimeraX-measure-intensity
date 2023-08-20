@@ -26,7 +26,7 @@ from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import (skeletonize,label)
-
+import matplotlib.pyplot as plt
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
     """Wrap the distance measurement for list of surfaces."""
@@ -272,10 +272,21 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
     surface.edges = ind * sphere *Clip + 0
 
     """search limitations """
-    SearchLim = ind * sphere * Clip
+    SearchLimit = sphere * Clip
 
     """Reconstructed image"""
-    ArtImg = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, SearchLim=surface.edges, radius=radius, size=size)
+    ArtImg_edges = ImgReconstruct(surface.edges, x_coord, y_coord, z_coord, SearchLim=surface.edges, radius=radius, size=size)
+    ArtImg_whole = ImgReconstruct(1 ,x_coord, y_coord, z_coord, SearchLim= SearchLimit, radius=radius, size=size)
+    
+    """Equvilant to surface dusting all membranes disconnected from the largest object"""
+    ArtCC = label(ArtImg_whole)
+    cc_num, countscc= unique(ArtCC,return_counts=True)
+    fcc = countscc
+    fcc[fcc==max(fcc)] = 0
+    dusted_value = cc_num[where(fcc==max(fcc))]
+    dusted = ( ArtCC == dusted_value) + 0
+
+    ArtImg = ArtImg_edges*dusted
 
     """Surface Area of high curved regions"""
     surface.Area = count_nonzero(ArtImg) * size[0]*size[1]
@@ -304,6 +315,19 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
         with open('RidgeInfo.csv', 'ab') as f:
             savetxt(f, column_stack([surface.Area, surface.pathlength, surface.pathlengthsabovethresh]),
                      header=f"High_Curve_Surface_Area Lamella_pathlength Lamella_pathlength_above_thresh", comments='')
+        pos=where(isin(RidgeCc,p)==True)
+        frame=str(surface.id[1])
+        fig= plt.figure()
+        ax = fig.add_subplot(111,projection='3d')
+        ax.scatter(pos[0], pos[1], pos[2], c='black')
+        ax.set_title('Skeletonized Edges')
+        ax.set_xlabel('X \u03BCm')
+        ax.set_xlim(0,200)
+        ax.set_ylabel('Y \u03BCm')
+        ax.set_ylim(0,200)
+        ax.set_zlabel('Z \u03BCm')
+        ax.set_zlim(0,300)
+        plt.savefig(frame)
     else:
         return surface.pathlength
 
