@@ -11,17 +11,18 @@ from chimerax.std_commands.wait import wait
 from chimerax.surface import vertex_convexity
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
-                                    SurfacesArg, StringArg, FloatArg, SurfaceArg)
+                                    SurfacesArg, StringArg, FloatArg, SurfaceArg, AxisArg)
 from chimerax.core.commands.cli import EnumOf
 from chimerax.map.volumecommand import volume
 from chimerax.std_commands.cd import (cd)
 from os.path import exists
 import numpy
+from chimerax.surface.dust import largest_blobs_triangle_mask 
 from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
-                   zeros, where, delete, shape, argmin, min, shape, isin)
+                   zeros, where, delete, shape, ravel, min, shape, isin)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
@@ -35,10 +36,11 @@ def distance_series(session, surface, to_surface, knn=5, palette=None, color_ran
     recolor_surfaces(session, surface, 'distance', palette, color_range, key)
 
 
-def intensity_series(session, surface, to_map, radius=15, palette=None, color_range=None, key=False):
+def intensity_series(session, surface, to_map, radius=15, palette=None, color_range=None,
+                      key=False, xnorm=None,ynorm=None,znorm=None, output='none'):
     """Wrap the intensity measurement for list of surfaces."""
-    [measure_intensity(surface, to_map, radius)
-     for surface, to_map in zip(surface, to_map)]
+    [measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, output)
+    for surface, to_map in zip(surface, to_map)]
     recolor_surfaces(session, surface, 'intensity', palette, color_range, key)
 
 
@@ -71,8 +73,8 @@ def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.102
     [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn,
                     size, clip, output, track, exclusion)
         for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
-
-    recolor_surfaces(session, surface,'edges', palette, color_range, key)
+    plt.close('all')
+    recolor_surfaces(session, surface, metric= 'edges', palette=None, color_range='full', key=False)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -322,11 +324,11 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
         ax.scatter(pos[0], pos[1], pos[2], c='black')
         ax.set_title('Skeletonized Edges')
         ax.set_xlabel('X \u03BCm')
-        ax.set_xlim(0,200)
+        ax.set_xlim(0,max(pos[0]))
         ax.set_ylabel('Y \u03BCm')
-        ax.set_ylim(0,200)
+        ax.set_ylim(0,max(pos[1]))
         ax.set_zlabel('Z \u03BCm')
-        ax.set_zlim(0,300)
+        ax.set_zlim(0,max(pos[2]))
         plt.savefig(frame)
     else:
         return surface.pathlength
@@ -399,7 +401,7 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     ArtImg = ArtImg.astype('int8')
     return ArtImg
 
-def measure_intensity(surface, to_map, radius):
+def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, output):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
     masked_image = mask_image(*image_info)
@@ -407,6 +409,47 @@ def measure_intensity(surface, to_map, radius):
     _, index = query_tree(surface.vertices, image_coords.T, radius)
     face_intensity = local_intensity(*flattened_indices, index)
     surface.intensity = face_intensity
+
+    """amended section is disgned to report and create palletes for 
+    hemispheres on target of intensity values"""
+    if xnorm and ynorm and znorm is not None:
+        dust = largest_blobs_triangle_mask(surface.vertices, surface .triangles, surface.triangle_mask, rank_metric ='volume rank')
+        rave = ([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten
+        
+        vert_mask = zeros(shape(surface.vertices[:,0]))
+        raveind = rave[unique(rave)]
+        vert_mask[raveind]=1
+
+        centroid = mean(surface.vertices, axis=0)
+        ClipPlane= xnorm*(centroid[0]- surface.vertices[:,0]) + ynorm*(centroid[1]- surface.vertices[:,1]) + znorm*(centroid[2]- surface.vertices[:,2]) 
+        Top_hemisphere = ClipPlane>0
+        Bottom_hemisphere = ClipPlane<0
+
+        surface.intensity = face_intensity * vert_mask
+        surface.ClipTop = face_intensity * Top_hemisphere * vert_mask
+        surface.ClipBot = face_intensity * Bottom_hemisphere * vert_mask
+        
+
+
+        """Text file output"""
+        path = exists(output)
+        frame = surface.id[1]
+        topsum = sum(surface.ClipTop)
+        botsum = sum(surface.ClipBot)
+        path = exists(output)
+
+        if path == True:
+            cd(session,str(output))
+            with open('intensity.csv', 'ab') as f:
+                savetxt(f, column_stack([frame, topsum, botsum]),
+                        header=f"Frame Clip_Top Clip_Bot", comments='')
+        else:
+            return
+        return surface.intensity, surface.ClipTop, surface.ClipBot
+    else:
+        return surface.intensity
+    
+
 
 
 def measure_composite(surface, green_map, magenta_map, radius):
@@ -491,6 +534,14 @@ def recolor_surface(session, surface, metric, palette, color_range, key):
         max_range = 15
     elif metric == 'intensity' and hasattr(surface, 'intensity'):
         measurement = surface.intensity
+        palette_string = 'purples'
+        max_range = 5
+    elif metric == 'top' and hasattr(surface, 'ClipTop'):
+        measurement = surface.ClipTop
+        palette_string = 'purples'
+        max_range = 5
+    elif metric == 'bottom' and hasattr(surface, 'ClipBot'):
+        measurement = surface.ClipBot
         palette_string = 'purples'
         max_range = 5
     elif metric == 'R' and hasattr(surface, 'radialDistance'):
@@ -627,6 +678,10 @@ measure_intensity_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
     keyword=[('to_map', SurfacesArg),
              ('radius', Bounded(IntArg, 1, 30)),
+             ('xnorm',FloatArg),
+             ('ynorm',FloatArg),
+             ('znorm',FloatArg),
+             ('output',StringArg),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
@@ -647,7 +702,7 @@ measure_composite_desc = CmdDesc(
 
 recolor_surfaces_desc = CmdDesc(
     required=[('surface', SurfacesArg)],
-    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area', 'edges', 'qd'])),
+    keyword=[('metric', EnumOf(['intensity', 'distance','R', 'theta', 'phi', 'Rphi', 'rpg','rpd', 'area', 'edges', 'qd', 'bottom','top'])),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],

@@ -6,7 +6,7 @@ will be displayed without the ChimeraX- prefix.
 -->
 
 <BundleInfo name="ChimeraX-Measure-Intensity"
-	    version="0.5.3" package="chimerax.measure-intensity"
+	    version="0.5.5" package="chimerax.measure-intensity"
   	    minSessionVersion="1" maxSessionVersion="1">
 
   <!-- Additional information about bundle source -->
