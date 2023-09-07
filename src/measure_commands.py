@@ -73,7 +73,9 @@ def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.102
     [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn,
                     size, clip, output, track, exclusion)
         for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
-    plt.close('all')
+    p
+    lt.close('all')
+
     recolor_surfaces(session, surface, metric= 'edges', palette=None, color_range='full', key=False)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
@@ -413,17 +415,19 @@ def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, out
     """amended section is disgned to report and create palletes for 
     hemispheres on target of intensity values"""
     if xnorm and ynorm and znorm is not None:
-        dust = largest_blobs_triangle_mask(surface.vertices, surface .triangles, surface.triangle_mask, rank_metric ='volume rank')
-        rave = ([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten
+        dust = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask)
+        rave = column_stack([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten()
         
         vert_mask = zeros(shape(surface.vertices[:,0]))
-        raveind = rave[unique(rave)]
-        vert_mask[raveind]=1
+        """raveind = rave[unique(rave)]"""
+        vert_mask[rave] = 1
+        vert_mask3d=column_stack([vert_mask,vert_mask, vert_mask])
 
-        centroid = mean(surface.vertices, axis=0)
-        ClipPlane= xnorm*(centroid[0]- surface.vertices[:,0]) + ynorm*(centroid[1]- surface.vertices[:,1]) + znorm*(centroid[2]- surface.vertices[:,2]) 
-        Top_hemisphere = ClipPlane>0
-        Bottom_hemisphere = ClipPlane<0
+        centroid = mean( (surface.vertices * vert_mask3d) , axis=0)
+
+        ClipPlane= (xnorm* (centroid[0] - surface.vertices[:,0])) + (ynorm*(centroid[1] - surface.vertices[:,1])) + (znorm* (centroid[2] - surface.vertices[:,2])) 
+        Top_hemisphere = (ClipPlane>0) +0
+        Bottom_hemisphere = (ClipPlane<0) +0
 
         surface.intensity = face_intensity * vert_mask
         surface.ClipTop = face_intensity * Top_hemisphere * vert_mask
