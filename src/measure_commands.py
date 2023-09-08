@@ -412,8 +412,12 @@ def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, out
     face_intensity = local_intensity(*flattened_indices, index)
     surface.intensity = face_intensity
 
-    """amended section is disgned to report and create palletes for 
-    hemispheres on target of intensity values"""
+    """
+    Amended section is disgned to report and create palletes for 
+    hemispheres on target of intensity values
+    Author: YML
+    Date: 20230907
+    """
     if xnorm and ynorm and znorm is not None:
         dust = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask)
         rave = column_stack([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten()
