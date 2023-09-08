@@ -419,11 +419,13 @@ def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, out
         rave = column_stack([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten()
         
         vert_mask = zeros(shape(surface.vertices[:,0]))
-        """raveind = rave[unique(rave)]"""
+
         vert_mask[rave] = 1
         vert_mask3d=column_stack([vert_mask,vert_mask, vert_mask])
 
-        centroid = mean( (surface.vertices * vert_mask3d) , axis=0)
+        t_ver = (surface.vertices * vert_mask3d)
+        t_ver[t_ver==0] = nan 
+        centroid = nanmean( t_ver , axis=0)
 
         ClipPlane= (xnorm* (centroid[0] - surface.vertices[:,0])) + (ynorm*(centroid[1] - surface.vertices[:,1])) + (znorm* (centroid[2] - surface.vertices[:,2])) 
         Top_hemisphere = (ClipPlane>0) +0
