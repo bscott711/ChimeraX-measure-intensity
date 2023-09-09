@@ -37,9 +37,9 @@ def distance_series(session, surface, to_surface, knn=5, palette=None, color_ran
 
 
 def intensity_series(session, surface, to_map, radius=15, palette=None, color_range=None,
-                      key=False, xnorm=None,ynorm=None,znorm=None, output='none'):
+                      key=False, xnorm=None, ynorm=None, znorm=None, blob = 1, output='none'):
     """Wrap the intensity measurement for list of surfaces."""
-    [measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, output)
+    [measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, blob,  output)
     for surface, to_map in zip(surface, to_map)]
     recolor_surfaces(session, surface, 'intensity', palette, color_range, key)
 
@@ -73,8 +73,7 @@ def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.102
     [measure_ridges(session, surface, to_surface, to_cell, radius, smoothing_iterations, thresh, knn,
                     size, clip, output, track, exclusion)
         for surface, to_surface, to_cell in zip(surface, to_surface, to_cell)]
-    p
-    lt.close('all')
+    plt.close('all')
 
     recolor_surfaces(session, surface, metric= 'edges', palette=None, color_range='full', key=False)
 
@@ -403,7 +402,7 @@ def ImgReconstruct(Points, x_coord, y_coord, z_coord, SearchLim, radius, size):
     ArtImg = ArtImg.astype('int8')
     return ArtImg
 
-def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, output):
+def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, blob, output):
     """Measure the local intensity within radius r of the surface."""
     image_info = get_image(surface, to_map)
     masked_image = mask_image(*image_info)
@@ -419,7 +418,25 @@ def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, out
     Date: 20230907
     """
     if xnorm and ynorm and znorm is not None:
-        dust = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask)
+        if blob == 1:
+            dust = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=1, rank_metric = 'volume rank')
+
+        elif blob == 2:
+            dust_1st = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=1, rank_metric = "volume rank")+0
+            dust_2nd = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=2, rank_metric = "volume rank")+0
+            dust= dust_2nd - dust_1st
+
+        elif blob == 3:    
+            dust_1st = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=2, rank_metric = "volume rank")+0
+            dust_2nd = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=3, rank_metric = "volume rank")+0
+            dust= dust_2nd - dust_1st
+
+        elif blob == 4:    
+            dust_1st = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=3, rank_metric = "volume rank")+0
+            dust_2nd = largest_blobs_triangle_mask(surface.vertices, surface.triangles, surface.triangle_mask, blob_count=4, rank_metric = "volume rank")+0
+            dust= dust_2nd - dust_1st
+
+        
         rave = column_stack([(surface.triangles[:,0]*dust),(surface.triangles[:,1]*dust),(surface.triangles[:,2]*dust)]).flatten()
         
         vert_mask = zeros(shape(surface.vertices[:,0]))
@@ -692,6 +709,7 @@ measure_intensity_desc = CmdDesc(
              ('ynorm',FloatArg),
              ('znorm',FloatArg),
              ('output',StringArg),
+             ('blob', Bounded(IntArg, 1 , 4)),
              ('palette', ColormapArg),
              ('color_range', ColormapRangeArg),
              ('key', BoolArg)],
