@@ -22,12 +22,13 @@ from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
-                   zeros, where, delete, shape, ravel, min, shape, isin)
+                   zeros, where, delete, shape, ravel, min, shape, isin,flip)
 from scipy.ndimage import (binary_dilation, binary_erosion,
                            generate_binary_structure, iterate_structure, gaussian_filter)
 from scipy.spatial import KDTree
 from skimage.morphology import (skeletonize,label)
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 
 def distance_series(session, surface, to_surface, knn=5, palette=None, color_range=None, key=False):
     """Wrap the distance measurement for list of surfaces."""
@@ -326,11 +327,18 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
         ax.set_title('Skeletonized Edges')
         ax.set_xlabel('X \u03BCm')
         ax.set_xlim(0,max(pos[0]))
+        ax.set_xticks([0,max(pos[0])])
         ax.set_ylabel('Y \u03BCm')
         ax.set_ylim(0,max(pos[1]))
+        ax.set_yticks([0,max(pos[1])])
         ax.set_zlabel('Z \u03BCm')
         ax.set_zlim(0,max(pos[2]))
-        plt.savefig(frame)
+        ax.set_zticks([0,max(pos[2])])
+        """Ruffling graph"""
+        """ax.view_init(400,225,roll=None)"""
+        """Phagocytosis graph"""
+        ax.view_init(400,255,roll=None)
+        plt.savefig(frame,dpi=600)
     else:
         return surface.pathlength
 
