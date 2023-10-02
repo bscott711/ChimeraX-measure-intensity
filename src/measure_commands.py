@@ -338,7 +338,8 @@ def measure_ridges(session, surface, to_surface, to_cell,  radius = 8, smoothing
         """ax.view_init(400,225,roll=None)"""
         """Phagocytosis graph"""
         ax.view_init(400,255,roll=None)
-        plt.savefig(frame,dpi=600)
+        fig.set_size_inches(5.5, 5.5)
+        plt.savefig(frame,dpi=350)
     else:
         return surface.pathlength
 
