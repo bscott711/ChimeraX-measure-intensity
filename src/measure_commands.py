@@ -142,7 +142,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
 
     """Logic statments for solving the unique X,Y coordinates in the upper hemisphere search"""
     XYZ_SearchLim = distance*abovePhi
-    SearchR = distance*abovePhi*outerlim
+    SearchR = (distance*abovePhi*radialClose)>0
     '''XY_SearchR = distance*abovePhi
     XY_deletes = where(XY_SearchR==0)
     XYZ_deletes = where(XYZ_SearchR==0)
@@ -186,7 +186,7 @@ def measure_topology(session, surface, to_cell, radius=8, target='sRBC', size=[0
     ArtImg_Filled= binary_erosion(((gaussian_filter(ArtImgxy,.5))>0),border_value=1,iterations=2)
 
     ArtImg_Filledxyz = binary_erosion(((gaussian_filter(ArtImgxyz,.2))>0),border_value=1,iterations=1)'''
-    ArtImg = ImgReconstruct(SearchR,x_coord,y_coord,z_coord,XYZ_SearchLim)
+    ArtImg = ImgReconstruct(SearchR,x_coord,y_coord,z_coord,XYZ_SearchLim,radius=radius, size=size)
     """Area of pixels in X,Y plane of the hemispher search"""
     Area_S= count_nonzero(ArtImg) * (size[1] * size[0])
 
