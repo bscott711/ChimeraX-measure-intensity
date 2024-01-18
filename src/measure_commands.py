@@ -22,11 +22,18 @@ from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
-                   zeros, where, delete, shape, ravel, min, shape, isin,flip)
+                   zeros, where, delete, shape, ravel, min, shape, isin,flip,
+                   ones,asarray)
 from scipy.ndimage import (binary_dilation, binary_erosion,
-                           generate_binary_structure, iterate_structure, gaussian_filter)
+                           generate_binary_structure, iterate_structure, gaussian_filter, gaussian_laplace)
 from scipy.spatial import KDTree
+
 from skimage.morphology import (skeletonize,label)
+from skimage.feature import canny
+
+from chimerax.map_data import ArrayGridData 
+from chimerax.map import volume_from_grid_data
+
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
@@ -77,6 +84,14 @@ def ridge_series(session, surface, to_surface, to_cell, radius = 8, size = (.102
     plt.close('all')
 
     recolor_surfaces(session, surface, metric= 'edges', palette=None, color_range='full', key=False)
+
+def voids_seires(session, surface, bg = 110, sd = 0.1, stg = 0.8, dups= None, per = 0.88, drop = 3 ):
+
+    """This function is designed to use the surface models specify to generate new volumes that correspond to internal 
+    vesicles in the specified surface model. -YML"""
+    find_voids(session, surface, bg, sd, stg, dups, per, drop )
+
+
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -485,7 +500,273 @@ def measure_intensity(session, surface, to_map, radius, xnorm, ynorm, znorm, blo
     else:
         return surface.intensity
     
+def find_voids(session, surface, bg, sd, stg, dups, per , drop ):
 
+    mask_vol = surface.volume.full_matrix().copy()
+    mean = nanmean(mask_vol,where=(mask_vol> bg))
+    dev = nanstd(mask_vol,where=(mask_vol> bg))
+
+    masked_image= (mask_vol >= (mean-(dev*sd)))
+    masking= (masked_image<1)
+
+    blank=zeros(shape(masking))
+
+    for n in range( shape(masked_image)[0] ):
+        edge = canny(masked_image[n,:,:],sigma=1)
+        blank[n,:,:] = edge
+    
+
+
+    d=binary_dilation(blank,iterations=1)
+
+    dd=binary_dilation(blank,iterations=2)
+
+    g= 1*dd-1*d
+
+    p=binary_dilation(g,iterations=3)
+
+    shave=masked_image*(p+d)
+
+    y_l=gaussian_laplace((mask_vol*((shave+0) - (masking+0))),sigma=.3,truncate=3)
+    y=gaussian_laplace((mask_vol),sigma=.3,truncate=8)
+
+    stlg = 0.8125 * stg
+
+    shadow=y
+    shadow_thresh=shadow>=(stg*numpy.max(shadow))
+
+    shadow_l=y_l
+    shadow_thresh_l=shadow_l>=(stlg*numpy.max(shadow_l))
+
+    img_shave = y*(shadow_thresh+shadow_thresh_l)
+
+    heightMax = numpy.max(where(shave<=0.82),axis=1)[0]
+    heightLimit= heightMax * 0.95
+
+    if dups is not None:
+        if dups == 1:
+            img_i = img_shave >= (per*numpy.max(img_shave))
+            dusted_i  =zeros(shape(img_shave))
+            img_int1=img_i.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int1[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_i[n,:,:] = ones(shape(void))
+                else:
+                    dusted_i[n,:,:] = void==dusted_values.any()
+            voids_found=((img_i-dusted_i))>0      
+            mask=ArrayGridData((voids_found))
+            volume_from_grid_data(mask,session)
+
+        elif dups ==2:
+            img_i = img_shave >= (per*numpy.max(img_shave))
+            dusted_i  =zeros(shape(img_shave))
+            img_int1=img_i.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int1[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_i[n,:,:] = ones(shape(void))
+                else:
+                    dusted_i[n,:,:] = void==dusted_values.any()
+    
+            img_ii = img_shave >= (((per-drop))*numpy.max(img_shave))
+            dusted_ii  =zeros(shape(img_shave))
+            
+            img_int2=img_ii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int2[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_ii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_ii[n,:,:] = void==dusted_values.any()
+
+            voids_found=((img_i-dusted_i) + (img_ii-dusted_ii))>0      
+            mask=ArrayGridData((voids_found))
+            volume_from_grid_data(mask,session)
+
+        elif dups ==3:
+            img_i = img_shave >= (per*numpy.max(img_shave))
+            dusted_i  =zeros(shape(img_shave))
+            img_int1=img_i.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int1[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_i[n,:,:] = ones(shape(void))
+                else:
+                    dusted_i[n,:,:] = void==dusted_values.any()
+
+            img_ii = img_shave >= ((per-drop)*numpy.max(img_shave))
+            dusted_ii  =zeros(shape(img_shave))
+            
+            img_int2=img_ii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int2[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_ii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_ii[n,:,:] = void==dusted_values.any()
+            
+            img_iii = img_shave >= ((per-(2*drop))*numpy.max(img_shave))
+            dusted_iii  =zeros(shape(img_shave))
+            img_int3=img_iii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int3[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_iii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_iii[n,:,:] = void==dusted_values.any()
+            
+            voids_found=((img_i-dusted_i) + (img_ii-dusted_ii) + (img_iii-dusted_iii))>0      
+            mask=ArrayGridData((voids_found))
+            volume_from_grid_data(mask,session)
+
+        elif dups ==4:
+            img_i = img_shave >= (per*numpy.max(img_shave))
+            dusted_i  =zeros(shape(img_shave))
+            img_int1=img_i.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int1[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_i[n,:,:] = ones(shape(void))
+                else:
+                    dusted_i[n,:,:] = void==dusted_values.any()
+
+            img_ii = img_shave >= ((per-drop)*numpy.max(img_shave))
+            dusted_ii  =zeros(shape(img_shave))
+            
+            img_int2=img_ii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int2[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_ii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_ii[n,:,:] = void==dusted_values.any()
+                
+            img_iii = img_shave >= ((per-(2*drop))*numpy.max(img_shave))
+            dusted_iii  =zeros(shape(img_shave))
+            img_int3=img_iii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int3[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_iii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_iii[n,:,:] = void==dusted_values.any()
+            
+            img_iiii = img_shave >= ((per-(3*drop))*numpy.max(img_shave))
+            dusted_iiii  =zeros(shape(img_shave))
+            img_int4=img_iiii.astype("uint8")
+            for n in range(shape(masked_image)[0]):
+                void = label(img_int4[n,:,:],background=0)
+                RegionID, RegionSize= unique(void,return_counts=True)
+                exclusion=asarray(RegionSize>58).nonzero()    
+                dusted_values=RegionID[exclusion]
+                count=numpy.sum(exclusion)
+                if count <= 10 or n>heightLimit:
+                    dusted_iiii[n,:,:] = ones(shape(void))
+                else:
+                    dusted_iiii[n,:,:] = void==dusted_values.any()    
+            
+            voids_found=((img_i-dusted_i) + (img_ii-dusted_ii) + (img_iii-dusted_iii) + (img_iiii-dusted_iiii))>0      
+            mask=ArrayGridData((voids_found))
+            volume_from_grid_data(mask,session)
+    else:
+        img_i = img_shave >= (per*numpy.max(img_shave))
+        img_ii = img_shave >= ((per-drop)*numpy.max(img_shave))
+        img_iii = img_shave >= ((per-(2*drop))*numpy.max(img_shave))
+        img_iiii = img_shave >= ((per-(3*drop))*numpy.max(img_shave))
+
+        dusted_i  =zeros(shape(img_shave))
+        dusted_ii  =zeros(shape(img_shave))
+        dusted_iii  =zeros(shape(img_shave))
+        dusted_iiii  =zeros(shape(img_shave))
+        
+        img_int1=img_i.astype("uint8")
+        for n in range(shape(masked_image)[0]):
+            void = label(img_int1[n,:,:],background=0)
+            RegionID, RegionSize= unique(void,return_counts=True)
+            exclusion=asarray(RegionSize>58).nonzero()    
+            dusted_values=RegionID[exclusion]
+            count=numpy.sum(exclusion)
+            if count <= 10 or n>heightLimit:
+                dusted_i[n,:,:] = ones(shape(void))
+            else:
+                dusted_i[n,:,:] = void==dusted_values.any()
+        
+        img_int2=img_ii.astype("uint8")
+        for n in range(shape(masked_image)[0]):
+            void = label(img_int2[n,:,:],background=0)
+            RegionID, RegionSize= unique(void,return_counts=True)
+            exclusion=asarray(RegionSize>58).nonzero()    
+            dusted_values=RegionID[exclusion]
+            count=numpy.sum(exclusion)
+            if count <= 10 or n>heightLimit:
+                dusted_ii[n,:,:] = ones(shape(void))
+            else:
+                dusted_ii[n,:,:] = void==dusted_values.any()
+        
+        img_int3=img_iii.astype("uint8")
+        for n in range(shape(masked_image)[0]):
+            void = label(img_int3[n,:,:],background=0)
+            RegionID, RegionSize= unique(void,return_counts=True)
+            exclusion=asarray(RegionSize>58).nonzero()    
+            dusted_values=RegionID[exclusion]
+            count=numpy.sum(exclusion)
+            if count <= 10 or n>heightLimit:
+                dusted_iii[n,:,:] = ones(shape(void))
+            else:
+                dusted_iii[n,:,:] = void==dusted_values.any()
+
+        img_int4=img_iiii.astype("uint8")
+        for n in range(shape(masked_image)[0]):
+            void = label(img_int4[n,:,:],background=0)
+            RegionID, RegionSize= unique(void,return_counts=True)
+            exclusion=asarray(RegionSize>58).nonzero()    
+            dusted_values=RegionID[exclusion]
+            count=numpy.sum(exclusion)
+            if count <= 10 or n>heightLimit:
+                dusted_iiii[n,:,:] = ones(shape(void))
+            else:
+                dusted_iiii[n,:,:] = void==dusted_values.any()
+
+        voids_found=((img_i-dusted_i)+(img_ii-dusted_ii)+(img_iii-dusted_iii)+(img_iiii-dusted_iiii))>0
+        mask=ArrayGridData((voids_found))
+        volume_from_grid_data(mask,session)
 
 
 def measure_composite(surface, green_map, magenta_map, radius):
@@ -787,5 +1068,15 @@ measure_ridges_desc = CmdDesc(
              ('exclusion', Bounded(FloatArg)),
              ('key', BoolArg)],
     required_arguments = ['to_surface','to_cell'],
-    synopsis = 'This function is in its first iteration. Current implimentation focuses on identifying high curvature'
+    synopsis = 'Current implimentation focuses on identifying high curvature'
         'lamella edges for video recodings')
+
+find_voids_desc = CmdDesc(
+    required=[('surface',SurfaceArg)],
+    keyword=[('bg', FloatArg),
+             ('sd', Bounded(FloatArg,0,1)),
+             ('stg', Bounded(FloatArg,0,1)),
+             ('dups', Bounded(IntArg,1,4)),
+             ('per', Bounded(FloatArg,0,1)),
+             ('drop', Bounded(FloatArg,0,.99))],
+    synopsis = 'This function is designed to find voids in a surface rendering.')

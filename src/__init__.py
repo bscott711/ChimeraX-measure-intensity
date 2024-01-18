@@ -55,6 +55,9 @@ class _MyAPI(BundleAPI):
         elif ci.name == "measure ridges":
             func = measure_commands.measure_ridges
             desc = measure_commands.measure_ridges_desc
+        elif ci.name == "find voids":
+            func = measure_commands.voids_seires
+            desc = measure_commands.find_voids_desc
         else:
             raise ValueError(
                 f'Trying to register unknown command: {ci.name}')
