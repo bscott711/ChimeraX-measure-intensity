@@ -9,6 +9,7 @@ from chimerax.color_key import show_key
 from chimerax.core import colors
 from chimerax.std_commands.wait import wait
 from chimerax.surface import vertex_convexity
+from chimerax.atomic import AtomsArg
 from chimerax.core.commands import (BoolArg, Bounded, CmdDesc, ColormapArg,
                                     ColormapRangeArg, Int2Arg, IntArg,
                                     SurfacesArg, StringArg, FloatArg, SurfaceArg, AxisArg)
@@ -18,7 +19,7 @@ from chimerax.std_commands.cd import (cd)
 from os.path import exists
 import numpy
 from chimerax.surface.dust import largest_blobs_triangle_mask 
-from numpy import (arccos, array, full, inf, isnan, mean, nan, nanmax, nanmean,
+from numpy import (arccos, array, full, inf, isnan, mean, round, nan, nanmax, nanmean,
                    nanmin, pi, ravel_multi_index, sign, split, sqrt, subtract,
                    count_nonzero, swapaxes, savetxt, column_stack,nansum, nanstd,
                    unique, column_stack, round_, int64, abs, digitize, linspace,
@@ -91,7 +92,10 @@ def voids_seires(session, surface, bg = 110, sd = 0.1, stg = 0.8, dups= None, pe
     vesicles in the specified surface model. -YML"""
     find_voids(session, surface, bg, sd, stg, dups, per, drop )
 
-
+def void_size_series(session, surface, track, tp, output):
+    """centers to volumes
+    author yml 20240327"""
+    void_size(session, surface, track, tp, output)
 
 def recolor_surfaces(session, surface, metric='intensity', palette=None, color_range=None, key=False):
     """Wraps recolor_surface in a list comprehension"""
@@ -768,6 +772,24 @@ def find_voids(session, surface, bg, sd, stg, dups, per , drop ):
         mask=ArrayGridData((voids_found))
         volume_from_grid_data(mask,session)
 
+def void_size(session, surface, track, tp, output):
+    """imort tract export size"""
+    vol = surface.volume.full_matrix().copy()
+    xyz= track[tp].coord
+    f = xyz / .1028
+    cen=(round(f)).astype('int')
+    mask = vol + 0
+    pixcc=label(mask)
+    id = pixcc[ cen[2], cen[1], cen[0] ]  
+    volume =count_nonzero(pixcc==id)* (.1028*.1028*.1028)
+
+    cd(session, str(output))
+    with open('volume.csv', 'ab') as f:
+        savetxt(f, column_stack([volume,tp]),
+            header=f"volume time_point", comments='')
+    
+
+
 
 def measure_composite(surface, green_map, magenta_map, radius):
     """Measure the local intensity for 2 channels within radius r of the surface."""
@@ -1080,3 +1102,11 @@ find_voids_desc = CmdDesc(
              ('per', Bounded(FloatArg,0,1)),
              ('drop', Bounded(FloatArg,0,.99))],
     synopsis = 'This function is designed to find voids in a surface rendering.')
+
+void_size_desc = CmdDesc(
+    required=[('surface', SurfaceArg)],
+    keyword=[('track',AtomsArg),
+             ('tp',IntArg), 
+             ('output',StringArg)],
+    required_arguments = ['surface','track','tp','output'],
+    synopsis='output volume')
