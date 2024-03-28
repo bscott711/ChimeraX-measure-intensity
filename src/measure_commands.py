@@ -773,7 +773,7 @@ def find_voids(session, surface, bg, sd, stg, dups, per , drop ):
         volume_from_grid_data(mask,session)
 
 def void_size(session, surface, track, tp, output):
-    """imort tract export size"""
+    """import tract export size yml"""
     vol = surface.volume.full_matrix().copy()
     xyz= track[tp].coord
     f = xyz / .1028
